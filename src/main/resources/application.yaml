@@ -1,3 +1,27 @@
 spring:
   application:
     name: affismart-mall-be
+  profiles:
+    default: dev
+  mvc:
+    problemdetails:
+      enabled: false
+  jackson:
+    time-zone: Asia/Bangkok
+
+server:
+  port: 8080
+
+app:
+  timezone: Asia/Bangkok
+  cors:
+    allow-credentials: true
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - "*"
