@@ -1,0 +1,1 @@
+# AffiSmart AI service package.
