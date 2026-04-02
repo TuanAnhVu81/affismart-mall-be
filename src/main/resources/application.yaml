@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: affismart-mall-be
   profiles:
@@ -33,3 +35,13 @@ app:
       - OPTIONS
     allowed-headers:
       - "*"
+  auth:
+    jwt:
+      issuer: affismart-mall-be
+      access-token-ttl: 30m
+      secret: ${JWT_SECRET}
+    refresh-token:
+      ttl: 7d
+      cookie-name: refresh_token
+      cookie-path: /api/v1/auth
+      http-only: true

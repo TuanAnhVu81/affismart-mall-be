@@ -27,3 +27,7 @@ app:
   cors:
     allowed-origins:
       - http://localhost:5173
+  auth:
+    refresh-token:
+      same-site: Lax
+      secure: false

@@ -5,3 +5,17 @@ spring:
       - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+app:
+  auth:
+    jwt:
+      issuer: affismart-mall-be-test
+      access-token-ttl: 30m
+      secret: affismart-mall-test-secret-key-change-me-1234567890
+    refresh-token:
+      ttl: 7d
+      cookie-name: refresh_token
+      cookie-path: /api/v1/auth
+      same-site: Lax
+      secure: false
+      http-only: true
