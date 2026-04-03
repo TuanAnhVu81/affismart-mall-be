@@ -22,7 +22,7 @@ import lombok.Setter;
 public class UserRole {
 
 	@EmbeddedId
-	private UserRoleId id;
+	private UserRoleId id = new UserRoleId();
 
 	@MapsId("userId")
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -40,15 +40,26 @@ public class UserRole {
 	public UserRole(User user, Role role) {
 		this.user = user;
 		this.role = role;
+		syncId();
 	}
 
 	@PrePersist
 	void prePersist() {
-		if (id == null && user != null && role != null) {
-			id = new UserRoleId(user.getId(), role.getId());
-		}
+		syncId();
 		if (assignedAt == null) {
 			assignedAt = LocalDateTime.now();
+		}
+	}
+
+	private void syncId() {
+		if (id == null) {
+			id = new UserRoleId();
+		}
+		if (user != null) {
+			id.setUserId(user.getId());
+		}
+		if (role != null) {
+			id.setRoleId(role.getId());
 		}
 	}
 }

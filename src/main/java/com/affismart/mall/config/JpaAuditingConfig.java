@@ -4,8 +4,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
+// Enable JPA auditing to automatically populate @CreatedDate and @LastModifiedDate fields
 @Configuration
-@EnableJpaAuditing
 @ConditionalOnBean(name = "jpaMappingContext")
+@EnableJpaAuditing
 public class JpaAuditingConfig {
 }

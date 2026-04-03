@@ -20,6 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -28,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private static final String BEARER_PREFIX = "Bearer ";
 	private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
 	private final JwtService jwtService;
 	private final UserDetailsService userDetailsService;
@@ -41,6 +43,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		this.jwtService = jwtService;
 		this.userDetailsService = userDetailsService;
 		this.authenticationEntryPoint = authenticationEntryPoint;
+	}
+
+	@Override
+	protected boolean shouldNotFilter(HttpServletRequest request) {
+		String requestUri = request.getRequestURI();
+		String method = request.getMethod();
+
+		return matches(method, requestUri, "POST", "/api/v1/auth/register")
+				|| matches(method, requestUri, "POST", "/api/v1/auth/login")
+				|| matches(method, requestUri, "POST", "/api/v1/auth/refresh")
+				|| PATH_MATCHER.match("/swagger-ui/**", requestUri)
+				|| "/swagger-ui.html".equals(requestUri)
+				|| PATH_MATCHER.match("/v3/api-docs/**", requestUri)
+				|| "/error".equals(requestUri)
+				|| matches(method, requestUri, "GET", "/api/v1/products/**")
+				|| matches(method, requestUri, "GET", "/api/v1/categories/**")
+				|| PATH_MATCHER.match("/api/v1/ai/**", requestUri);
 	}
 
 	@Override
@@ -97,6 +116,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private boolean matchesUserId(UserDetails userDetails, Long userId) {
 		return userDetails instanceof UserPrincipal userPrincipal
 				&& Objects.equals(userPrincipal.getUserId(), userId);
+	}
+
+	private boolean matches(String method, String requestUri, String expectedMethod, String pattern) {
+		return expectedMethod.equalsIgnoreCase(method) && PATH_MATCHER.match(pattern, requestUri);
 	}
 
 	private void handleAuthenticationFailure(

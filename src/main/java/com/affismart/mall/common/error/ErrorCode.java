@@ -9,6 +9,14 @@ public enum ErrorCode {
 	ACCESS_DENIED("ACCESS_DENIED", "You do not have permission to access this resource", HttpStatus.FORBIDDEN),
 	RESOURCE_NOT_FOUND("RESOURCE_NOT_FOUND", "Requested resource was not found", HttpStatus.NOT_FOUND),
 	CONFLICT("CONFLICT", "Request could not be completed because of a conflict", HttpStatus.CONFLICT),
+	EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", "Email is already registered", HttpStatus.CONFLICT),
+	INVALID_CREDENTIALS("INVALID_CREDENTIALS", "Invalid email or password", HttpStatus.UNAUTHORIZED),
+	USER_NOT_ACTIVE("USER_NOT_ACTIVE", "User account is not active", HttpStatus.FORBIDDEN),
+	DEFAULT_ROLE_NOT_FOUND(
+			"DEFAULT_ROLE_NOT_FOUND",
+			"Default customer role is not configured",
+			HttpStatus.INTERNAL_SERVER_ERROR
+	),
 	INVALID_REFRESH_TOKEN("INVALID_REFRESH_TOKEN", "Refresh token is invalid or expired", HttpStatus.UNAUTHORIZED),
 	REFRESH_TOKEN_REUSE_DETECTED(
 			"REFRESH_TOKEN_REUSE_DETECTED",
