@@ -9,12 +9,20 @@ public enum ErrorCode {
 	ACCESS_DENIED("ACCESS_DENIED", "You do not have permission to access this resource", HttpStatus.FORBIDDEN),
 	RESOURCE_NOT_FOUND("RESOURCE_NOT_FOUND", "Requested resource was not found", HttpStatus.NOT_FOUND),
 	CONFLICT("CONFLICT", "Request could not be completed because of a conflict", HttpStatus.CONFLICT),
+	USER_NOT_FOUND("USER_NOT_FOUND", "User was not found", HttpStatus.NOT_FOUND),
 	EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", "Email is already registered", HttpStatus.CONFLICT),
 	INVALID_CREDENTIALS("INVALID_CREDENTIALS", "Invalid email or password", HttpStatus.UNAUTHORIZED),
+	INVALID_CURRENT_PASSWORD("INVALID_CURRENT_PASSWORD", "Current password is incorrect", HttpStatus.BAD_REQUEST),
 	USER_NOT_ACTIVE("USER_NOT_ACTIVE", "User account is not active", HttpStatus.FORBIDDEN),
+	INVALID_USER_STATUS("INVALID_USER_STATUS", "User status transition is not allowed", HttpStatus.BAD_REQUEST),
 	DEFAULT_ROLE_NOT_FOUND(
 			"DEFAULT_ROLE_NOT_FOUND",
 			"Default customer role is not configured",
+			HttpStatus.INTERNAL_SERVER_ERROR
+	),
+	ADMIN_ROLE_NOT_FOUND(
+			"ADMIN_ROLE_NOT_FOUND",
+			"Administrator role is not configured",
 			HttpStatus.INTERNAL_SERVER_ERROR
 	),
 	INVALID_REFRESH_TOKEN("INVALID_REFRESH_TOKEN", "Refresh token is invalid or expired", HttpStatus.UNAUTHORIZED),

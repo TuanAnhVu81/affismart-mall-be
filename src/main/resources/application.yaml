@@ -45,3 +45,9 @@ app:
       cookie-name: refresh_token
       cookie-path: /api/v1/auth
       http-only: true
+  bootstrap:
+    admin:
+      enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
+      email: ${ADMIN_EMAIL:}
+      password: ${ADMIN_PASSWORD:}
+      full-name: ${ADMIN_FULL_NAME:AffiSmart Administrator}

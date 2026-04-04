@@ -69,14 +69,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			FilterChain filterChain
 	) throws ServletException, IOException {
 		String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-		if (!StringUtils.hasText(authorizationHeader) || !authorizationHeader.startsWith(BEARER_PREFIX)) {
+		if (!StringUtils.hasText(authorizationHeader)) {
 			filterChain.doFilter(request, response);
 			return;
 		}
 
-		String token = authorizationHeader.substring(BEARER_PREFIX.length()).trim();
+		String token = extractToken(authorizationHeader);
 		if (!StringUtils.hasText(token)) {
-			handleAuthenticationFailure(request, response, new BadCredentialsException("Bearer token is missing"));
+			handleAuthenticationFailure(
+					request,
+					response,
+					new BadCredentialsException("Authorization header format is invalid")
+			);
 			return;
 		}
 
@@ -120,6 +124,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private boolean matches(String method, String requestUri, String expectedMethod, String pattern) {
 		return expectedMethod.equalsIgnoreCase(method) && PATH_MATCHER.match(pattern, requestUri);
+	}
+
+	private String extractToken(String authorizationHeader) {
+		String value = authorizationHeader.trim();
+		if (!StringUtils.hasText(value)) {
+			return null;
+		}
+
+		if (value.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
+			String bearerToken = value.substring(BEARER_PREFIX.length()).trim();
+			return StringUtils.hasText(bearerToken) ? bearerToken : null;
+		}
+
+		// Support raw token value for clients that accidentally omit "Bearer ".
+		return value.contains(" ") ? null : value;
 	}
 
 	private void handleAuthenticationFailure(

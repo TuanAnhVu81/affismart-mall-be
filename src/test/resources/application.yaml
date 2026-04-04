@@ -19,3 +19,6 @@ app:
       same-site: Lax
       secure: false
       http-only: true
+  bootstrap:
+    admin:
+      enabled: false
