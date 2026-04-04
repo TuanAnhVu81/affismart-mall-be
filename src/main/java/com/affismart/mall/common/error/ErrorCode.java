@@ -31,6 +31,12 @@ public enum ErrorCode {
 			"Refresh token reuse detected. All sessions have been revoked",
 			HttpStatus.UNAUTHORIZED
 	),
+	FILE_STORAGE_NOT_CONFIGURED(
+			"FILE_STORAGE_NOT_CONFIGURED",
+			"File storage provider is not configured",
+			HttpStatus.SERVICE_UNAVAILABLE
+	),
+	FILE_UPLOAD_FAILED("FILE_UPLOAD_FAILED", "Failed to upload file", HttpStatus.BAD_GATEWAY),
 	INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
 
 	private final String code;

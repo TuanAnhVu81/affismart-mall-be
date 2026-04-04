@@ -9,6 +9,8 @@ import com.affismart.mall.modules.auth.dto.response.AuthUserResponse;
 import com.affismart.mall.modules.auth.model.AuthenticatedSession;
 import com.affismart.mall.modules.auth.service.AuthService;
 import com.affismart.mall.modules.auth.service.RefreshTokenCookieService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static com.affismart.mall.common.error.ErrorCode.INVALID_REFRESH_TOKEN;
 
+@Tag(name = "Authentication", description = "Endpoints for user registration, login, and session management")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -34,6 +37,7 @@ public class AuthController {
 		this.refreshTokenCookieService = refreshTokenCookieService;
 	}
 
+	@Operation(summary = "Register a new user account", description = "Creates a new user with default CUSTOMER role and ACTIVE status")
 	@PostMapping("/register")
 	public ResponseEntity<ApiResponse<AuthUserResponse>> register(@Valid @RequestBody RegisterRequest request) {
 		AuthUserResponse response = authService.register(request);
@@ -41,6 +45,7 @@ public class AuthController {
 				.body(ApiResponse.success("Registration completed successfully", response));
 	}
 
+	@Operation(summary = "Login with email and password", description = "Returns an access token in the body and a refresh token in a secure HttpOnly cookie")
 	@PostMapping("/login")
 	public ResponseEntity<ApiResponse<AuthTokenResponse>> login(@Valid @RequestBody LoginRequest request) {
 		AuthenticatedSession session = authService.login(request);
@@ -51,6 +56,7 @@ public class AuthController {
 				.body(ApiResponse.success("Login successful", session.tokenResponse()));
 	}
 
+	@Operation(summary = "Refresh access token", description = "Rotates the refresh token and returns a new access token")
 	@PostMapping("/refresh")
 	public ResponseEntity<ApiResponse<AuthTokenResponse>> refresh(HttpServletRequest request) {
 		String refreshToken = extractRefreshToken(request);
@@ -62,6 +68,7 @@ public class AuthController {
 				.body(ApiResponse.success("Access token refreshed successfully", session.tokenResponse()));
 	}
 
+	@Operation(summary = "Logout user", description = "Revokes the refresh token and clears the secure cookie")
 	@PostMapping("/logout")
 	public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
 		String refreshToken = extractOptionalRefreshToken(request);
