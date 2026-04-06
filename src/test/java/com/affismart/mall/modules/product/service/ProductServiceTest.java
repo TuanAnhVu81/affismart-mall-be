@@ -10,15 +10,21 @@ import com.affismart.mall.modules.product.entity.Product;
 import com.affismart.mall.modules.product.repository.CategoryRepository;
 import com.affismart.mall.modules.product.repository.ProductRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
@@ -38,6 +44,9 @@ class ProductServiceTest {
 
 	@Captor
 	private ArgumentCaptor<Product> productCaptor;
+
+	@Captor
+	private ArgumentCaptor<Pageable> pageableCaptor;
 
 	// =========================================================
 	// createProduct()
@@ -294,6 +303,134 @@ class ProductServiceTest {
 				.isInstanceOf(AppException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	// =========================================================
+	// Public storefront methods
+	// =========================================================
+
+	@Test
+	@DisplayName("getPublicProducts: Happy Path - applies sorting and returns paginated mapped result")
+	void getPublicProducts_WithFilters_ReturnsPageResponse() {
+		// Given
+		Category category = createMockCategory(1L, "Electronics");
+		Product product = buildSavedProduct(
+				11L,
+				category,
+				"Tai nghe",
+				"SKU-1",
+				"tai-nghe",
+				new BigDecimal("200"),
+				5,
+				true
+		);
+		Page<Product> productPage = new PageImpl<>(List.of(product));
+
+		given(productRepository.findAll(ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Product>>any(), any(Pageable.class)))
+				.willReturn(productPage);
+
+		// When
+		com.affismart.mall.common.response.PageResponse<ProductResponse> result = productService.getPublicProducts(
+				0, 20, "price_asc", "tai", 1L, new BigDecimal("100"), new BigDecimal("500")
+		);
+
+		// Then
+		verify(productRepository).findAll(
+				ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Product>>any(),
+				pageableCaptor.capture()
+		);
+		Pageable capturedPageable = pageableCaptor.getValue();
+		assertThat(capturedPageable.getPageNumber()).isEqualTo(0);
+		assertThat(capturedPageable.getPageSize()).isEqualTo(20);
+		assertThat(capturedPageable.getSort().getOrderFor("price").getDirection()).isEqualTo(Sort.Direction.ASC);
+		assertThat(result.content()).hasSize(1);
+		assertThat(result.content().getFirst().name()).isEqualTo("Tai nghe");
+	}
+
+	@Test
+	@DisplayName("getPublicProducts: Exception - invalid price range throws INVALID_INPUT")
+	void getPublicProducts_InvalidPriceRange_ThrowsInvalidInput() {
+		// When + Then
+		assertThatThrownBy(() -> productService.getPublicProducts(
+				0, 10, "newest", null, null, new BigDecimal("500"), new BigDecimal("100")
+		))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+	}
+
+	@Test
+	@DisplayName("getActiveProductById: Happy Path - returns mapped response when product is active")
+	void getActiveProductById_Found_ReturnsMappedResponse() {
+		// Given
+		Category category = createMockCategory(1L, "Electronics");
+		Product product = buildSavedProduct(
+				10L, category, "Tai nghe", "SKU-1", "tai-nghe",
+				new BigDecimal("200"), 5, true
+		);
+		given(productRepository.findByIdAndActiveTrue(10L)).willReturn(Optional.of(product));
+
+		// When
+		ProductResponse result = productService.getActiveProductById(10L);
+
+		// Then
+		assertThat(result.id()).isEqualTo(10L);
+		assertThat(result.name()).isEqualTo("Tai nghe");
+		assertThat(result.active()).isTrue();
+	}
+
+	@Test
+	@DisplayName("getActiveProductById: Exception - inactive or missing product throws PRODUCT_NOT_FOUND")
+	void getActiveProductById_NotFound_ThrowsProductNotFound() {
+		// Given
+		given(productRepository.findByIdAndActiveTrue(99L)).willReturn(Optional.empty());
+
+		// When + Then
+		assertThatThrownBy(() -> productService.getActiveProductById(99L))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("getLowStockProducts: Happy Path - returns active products with stock below default threshold")
+	void getLowStockProducts_DefaultThreshold_ReturnsMappedResult() {
+		// Given
+		Category category = createMockCategory(1L, "Electronics");
+		Product product = buildSavedProduct(
+				21L,
+				category,
+				"Low Stock Product",
+				"LOW-01",
+				"low-stock-product",
+				new BigDecimal("300"),
+				3,
+				true
+		);
+		given(productRepository.findLowStockProducts(10)).willReturn(List.of(product));
+
+		// When
+		List<ProductResponse> result = productService.getLowStockProducts();
+
+		// Then
+		assertThat(result).hasSize(1);
+		assertThat(result.getFirst().id()).isEqualTo(21L);
+		assertThat(result.getFirst().stockQuantity()).isEqualTo(3);
+		verify(productRepository).findLowStockProducts(10);
+	}
+
+	@Test
+	@DisplayName("getLowStockProducts: Edge Case - normalizes invalid threshold to minimum value 1")
+	void getLowStockProducts_InvalidThreshold_NormalizesToOne() {
+		// Given
+		given(productRepository.findLowStockProducts(1)).willReturn(List.of());
+
+		// When
+		List<ProductResponse> result = productService.getLowStockProducts(0);
+
+		// Then
+		assertThat(result).isEmpty();
+		verify(productRepository).findLowStockProducts(1);
 	}
 
 	// =========================================================

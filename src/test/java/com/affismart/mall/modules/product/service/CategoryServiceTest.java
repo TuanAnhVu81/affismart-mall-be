@@ -7,6 +7,7 @@ import com.affismart.mall.modules.product.dto.request.UpsertCategoryRequest;
 import com.affismart.mall.modules.product.dto.response.CategoryResponse;
 import com.affismart.mall.modules.product.entity.Category;
 import com.affismart.mall.modules.product.repository.CategoryRepository;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -192,6 +193,58 @@ class CategoryServiceTest {
 
 		// When + Then
 		assertThatThrownBy(() -> categoryService.updateCategoryStatus(99L, request))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.CATEGORY_NOT_FOUND);
+	}
+
+	// =========================================================
+	// Public storefront methods
+	// =========================================================
+
+	@Test
+	@DisplayName("getActiveCategories: Happy Path - returns only active categories ordered by name")
+	void getActiveCategories_ReturnsMappedActiveList() {
+		// Given
+		given(categoryRepository.findAllByActiveTrueOrderByNameAsc()).willReturn(List.of(
+				createMockCategory(1L, "Electronics", "electronics", true),
+				createMockCategory(2L, "Fashion", "fashion", true)
+		));
+
+		// When
+		List<CategoryResponse> result = categoryService.getActiveCategories();
+
+		// Then
+		assertThat(result).hasSize(2);
+		assertThat(result.get(0).name()).isEqualTo("Electronics");
+		assertThat(result.get(1).slug()).isEqualTo("fashion");
+	}
+
+	@Test
+	@DisplayName("getActiveCategoryById: Happy Path - returns category response when found and is active")
+	void getActiveCategoryById_Found_ReturnsMappedResponse() {
+		// Given
+		Category found = createMockCategory(5L, "Electronics", "electronics", true);
+		given(categoryRepository.findByIdAndActiveTrue(5L)).willReturn(Optional.of(found));
+
+		// When
+		CategoryResponse result = categoryService.getActiveCategoryById(5L);
+
+		// Then
+		assertThat(result.id()).isEqualTo(5L);
+		assertThat(result.name()).isEqualTo("Electronics");
+		assertThat(result.slug()).isEqualTo("electronics");
+		assertThat(result.active()).isTrue();
+	}
+
+	@Test
+	@DisplayName("getActiveCategoryById: Exception - inactive or missing category throws CATEGORY_NOT_FOUND")
+	void getActiveCategoryById_NotFound_ThrowsCategoryNotFound() {
+		// Given
+		given(categoryRepository.findByIdAndActiveTrue(99L)).willReturn(Optional.empty());
+
+		// When + Then
+		assertThatThrownBy(() -> categoryService.getActiveCategoryById(99L))
 				.isInstanceOf(AppException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.CATEGORY_NOT_FOUND);

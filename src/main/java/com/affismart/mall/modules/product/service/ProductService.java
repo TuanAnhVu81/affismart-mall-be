@@ -1,6 +1,7 @@
 package com.affismart.mall.modules.product.service;
 
 import com.affismart.mall.common.error.ErrorCode;
+import com.affismart.mall.common.response.PageResponse;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.product.dto.request.UpdateProductStatusRequest;
 import com.affismart.mall.modules.product.dto.request.UpsertProductRequest;
@@ -9,13 +10,22 @@ import com.affismart.mall.modules.product.entity.Category;
 import com.affismart.mall.modules.product.entity.Product;
 import com.affismart.mall.modules.product.repository.CategoryRepository;
 import com.affismart.mall.modules.product.repository.ProductRepository;
+import com.affismart.mall.modules.product.repository.ProductSpecifications;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Locale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
 public class ProductService {
+
+	private static final int DEFAULT_LOW_STOCK_THRESHOLD = 10;
 
 	private final ProductRepository productRepository;
 	private final CategoryRepository categoryRepository;
@@ -60,6 +70,53 @@ public class ProductService {
 		Product product = getRequiredProduct(productId);
 		product.setActive(request.active());
 		return toResponse(productRepository.save(product));
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<ProductResponse> getPublicProducts(
+			int page,
+			int size,
+			String sortBy,
+			String keyword,
+			Long categoryId,
+			BigDecimal minPrice,
+			BigDecimal maxPrice
+	) {
+		validatePriceRange(minPrice, maxPrice);
+
+		Pageable pageable = PageRequest.of(
+				Math.max(page, 0),
+				normalizePageSize(size),
+				resolvePublicSort(sortBy)
+		);
+
+		Page<ProductResponse> result = productRepository.findAll(
+						ProductSpecifications.forPublicCatalog(keyword, categoryId, minPrice, maxPrice),
+						pageable
+				)
+				.map(this::toResponse);
+		return PageResponse.from(result);
+	}
+
+	@Transactional(readOnly = true)
+	public ProductResponse getActiveProductById(Long productId) {
+		Product product = productRepository.findByIdAndActiveTrue(productId)
+				.orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+		return toResponse(product);
+	}
+
+	@Transactional(readOnly = true)
+	public List<ProductResponse> getLowStockProducts() {
+		return getLowStockProducts(DEFAULT_LOW_STOCK_THRESHOLD);
+	}
+
+	@Transactional(readOnly = true)
+	public List<ProductResponse> getLowStockProducts(int threshold) {
+		int normalizedThreshold = Math.max(threshold, 1);
+		return productRepository.findLowStockProducts(normalizedThreshold)
+				.stream()
+				.map(this::toResponse)
+				.toList();
 	}
 
 	private void applyProductFields(
@@ -112,6 +169,32 @@ public class ProductService {
 			return null;
 		}
 		return value.trim();
+	}
+
+	private Sort resolvePublicSort(String sortBy) {
+		if (!StringUtils.hasText(sortBy)) {
+			return Sort.by(Sort.Direction.DESC, "createdAt");
+		}
+
+		return switch (sortBy.trim().toLowerCase(Locale.ROOT)) {
+			case "price_asc" -> Sort.by(Sort.Direction.ASC, "price");
+			case "price_desc" -> Sort.by(Sort.Direction.DESC, "price");
+			case "newest" -> Sort.by(Sort.Direction.DESC, "createdAt");
+			default -> Sort.by(Sort.Direction.DESC, "createdAt");
+		};
+	}
+
+	private int normalizePageSize(int size) {
+		if (size <= 0) {
+			return 10;
+		}
+		return Math.min(size, 100);
+	}
+
+	private void validatePriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
+		if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+			throw new AppException(ErrorCode.INVALID_INPUT, "minPrice must be less than or equal to maxPrice");
+		}
 	}
 
 	private void ensureUniqueForCreate(String sku, String slug) {

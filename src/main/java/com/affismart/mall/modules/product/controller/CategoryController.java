@@ -8,7 +8,9 @@ import com.affismart.mall.modules.product.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -25,6 +27,18 @@ public class CategoryController {
 
 	public CategoryController(CategoryService categoryService) {
 		this.categoryService = categoryService;
+	}
+
+	@Operation(summary = "Get active categories (Public)")
+	@GetMapping
+	public ApiResponse<List<CategoryResponse>> getCategories() {
+		return ApiResponse.success("Categories retrieved successfully", categoryService.getActiveCategories());
+	}
+
+	@Operation(summary = "Get active category by ID (Public)")
+	@GetMapping("/{id}")
+	public ApiResponse<CategoryResponse> getCategoryById(@PathVariable Long id) {
+		return ApiResponse.success("Category retrieved successfully", categoryService.getActiveCategoryById(id));
 	}
 
 	@Operation(summary = "Create category (Admin only)")

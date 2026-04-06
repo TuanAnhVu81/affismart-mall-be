@@ -25,7 +25,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,8 +100,11 @@ public class AuthService {
 			);
 
 			UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-			RefreshTokenSession refreshTokenSession = refreshTokenService.issue(principal.getUserId());
-			return new AuthenticatedSession(buildTokenResponse(principal), refreshTokenSession.token());
+			User user = userRepository.findWithRolesById(principal.getUserId())
+					.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+			RefreshTokenSession refreshTokenSession = refreshTokenService.issue(user.getId());
+			return new AuthenticatedSession(buildTokenResponse(user), refreshTokenSession.token());
 		} catch (DisabledException exception) {
 			throw new AppException(ErrorCode.USER_NOT_ACTIVE);
 		} catch (BadCredentialsException exception) {
@@ -129,23 +132,6 @@ public class AuthService {
 		}
 	}
 
-	private AuthTokenResponse buildTokenResponse(UserPrincipal principal) {
-		List<String> roles = principal.getAuthorities().stream()
-				.map(GrantedAuthority::getAuthority)
-				.map(this::stripRolePrefix)
-				.toList();
-
-		String accessToken = jwtService.generateAccessToken(principal.getUserId(), principal.getUsername(), roles);
-		return new AuthTokenResponse(
-				principal.getUserId(),
-				principal.getUsername(),
-				roles,
-				accessToken,
-				BEARER_TOKEN_TYPE,
-				jwtService.extractExpiration(accessToken)
-		);
-	}
-
 	private AuthTokenResponse buildTokenResponse(User user) {
 		List<String> roles = user.getUserRoles().stream()
 				.map(userRole -> userRole.getRole().getName().name())
@@ -153,20 +139,14 @@ public class AuthService {
 
 		String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), roles);
 		return new AuthTokenResponse(
-				user.getId(),
-				user.getEmail(),
-				roles,
 				accessToken,
 				BEARER_TOKEN_TYPE,
-				jwtService.extractExpiration(accessToken)
+				jwtService.extractExpiration(accessToken),
+				authMapper.toAuthUserResponse(user)
 		);
 	}
 
 	private String normalizeEmail(String email) {
 		return email.trim().toLowerCase(Locale.ROOT);
-	}
-
-	private String stripRolePrefix(String authority) {
-		return authority.startsWith("ROLE_") ? authority.substring(5) : authority;
 	}
 }

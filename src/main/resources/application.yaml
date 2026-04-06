@@ -58,3 +58,6 @@ app:
       api-key: ${CLOUDINARY_API_KEY:}
       api-secret: ${CLOUDINARY_API_SECRET:}
       folder: ${CLOUDINARY_FOLDER:affismart/products}
+  inventory:
+    low-stock-threshold: 10
+    low-stock-cron: "0 0 0 * * ?"

@@ -7,6 +7,7 @@ import com.affismart.mall.modules.product.dto.request.UpsertCategoryRequest;
 import com.affismart.mall.modules.product.dto.response.CategoryResponse;
 import com.affismart.mall.modules.product.entity.Category;
 import com.affismart.mall.modules.product.repository.CategoryRepository;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -51,6 +52,21 @@ public class CategoryService {
 		Category category = getRequiredCategory(categoryId);
 		category.setActive(request.active());
 		return toResponse(categoryRepository.save(category));
+	}
+
+	@Transactional(readOnly = true)
+	public List<CategoryResponse> getActiveCategories() {
+		return categoryRepository.findAllByActiveTrueOrderByNameAsc()
+				.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public CategoryResponse getActiveCategoryById(Long categoryId) {
+		Category category = categoryRepository.findByIdAndActiveTrue(categoryId)
+				.orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+		return toResponse(category);
 	}
 
 	private Category getRequiredCategory(Long categoryId) {
