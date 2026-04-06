@@ -47,8 +47,15 @@ public class AuthController {
 
 	@Operation(summary = "Login with email and password", description = "Returns an access token in the body and a refresh token in a secure HttpOnly cookie")
 	@PostMapping("/login")
-	public ResponseEntity<ApiResponse<AuthTokenResponse>> login(@Valid @RequestBody LoginRequest request) {
-		AuthenticatedSession session = authService.login(request);
+	public ResponseEntity<ApiResponse<AuthTokenResponse>> login(
+			@Valid @RequestBody LoginRequest request,
+			HttpServletRequest httpServletRequest
+	) {
+		AuthenticatedSession session = authService.login(
+				request,
+				extractClientIp(httpServletRequest),
+				extractUserAgent(httpServletRequest)
+		);
 		HttpHeaders headers = new HttpHeaders();
 		refreshTokenCookieService.addRefreshTokenCookie(headers, session.refreshToken());
 		return ResponseEntity.ok()
@@ -60,7 +67,11 @@ public class AuthController {
 	@PostMapping("/refresh")
 	public ResponseEntity<ApiResponse<AuthTokenResponse>> refresh(HttpServletRequest request) {
 		String refreshToken = extractRefreshToken(request);
-		AuthenticatedSession session = authService.refresh(refreshToken);
+		AuthenticatedSession session = authService.refresh(
+				refreshToken,
+				extractClientIp(request),
+				extractUserAgent(request)
+		);
 		HttpHeaders headers = new HttpHeaders();
 		refreshTokenCookieService.addRefreshTokenCookie(headers, session.refreshToken());
 		return ResponseEntity.ok()
@@ -101,5 +112,18 @@ public class AuthController {
 			}
 		}
 		return null;
+	}
+
+	private String extractClientIp(HttpServletRequest request) {
+		String forwardedFor = request.getHeader("X-Forwarded-For");
+		if (forwardedFor != null) {
+			int index = forwardedFor.indexOf(',');
+			return index >= 0 ? forwardedFor.substring(0, index).trim() : forwardedFor.trim();
+		}
+		return request.getRemoteAddr();
+	}
+
+	private String extractUserAgent(HttpServletRequest request) {
+		return request.getHeader("User-Agent");
 	}
 }

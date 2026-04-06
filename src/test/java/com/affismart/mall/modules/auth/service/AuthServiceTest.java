@@ -157,16 +157,18 @@ class AuthServiceTest {
         UserPrincipal principal = createMockPrincipal(1L, "user@gmail.com");
         Authentication authentication = mock(Authentication.class);
         RefreshTokenSession session = new RefreshTokenSession("refresh-uuid", 1L);
+        User activeUser = createMockUser(1L, "user@gmail.com", UserStatus.ACTIVE);
 
         given(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .willReturn(authentication);
         given(authentication.getPrincipal()).willReturn(principal);
-        given(refreshTokenService.issue(1L)).willReturn(session);
+        given(userRepository.findWithRolesById(1L)).willReturn(Optional.of(activeUser));
+        given(refreshTokenService.issue(1L, "127.0.0.1", "JUnit")).willReturn(session);
         given(jwtService.generateAccessToken(eq(1L), eq("user@gmail.com"), any())).willReturn("access-token");
         given(jwtService.extractExpiration("access-token")).willReturn(Instant.now());
 
         // When
-        AuthenticatedSession result = authService.login(request);
+        AuthenticatedSession result = authService.login(request, "127.0.0.1", "JUnit");
 
         // Then
         assertThat(result).isNotNull();
@@ -183,7 +185,7 @@ class AuthServiceTest {
                 .willThrow(new BadCredentialsException("Bad credentials"));
 
         // When & Then
-        assertThatThrownBy(() -> authService.login(request))
+        assertThatThrownBy(() -> authService.login(request, "127.0.0.1", "JUnit"))
                 .isInstanceOf(AppException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_CREDENTIALS);
@@ -198,7 +200,7 @@ class AuthServiceTest {
                 .willThrow(new DisabledException("User is disabled"));
 
         // When & Then
-        assertThatThrownBy(() -> authService.login(request))
+        assertThatThrownBy(() -> authService.login(request, "127.0.0.1", "JUnit"))
                 .isInstanceOf(AppException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.USER_NOT_ACTIVE);
@@ -216,17 +218,17 @@ class AuthServiceTest {
         RefreshTokenSession rotatedSession = new RefreshTokenSession("new-refresh-uuid", 1L);
         User activeUser = createMockUser(1L, "user@gmail.com", UserStatus.ACTIVE);
 
-        given(refreshTokenService.rotate(oldToken)).willReturn(rotatedSession);
+        given(refreshTokenService.rotate(oldToken, "127.0.0.1", "JUnit")).willReturn(rotatedSession);
         given(userRepository.findWithRolesById(1L)).willReturn(Optional.of(activeUser));
         given(jwtService.generateAccessToken(any(), any(), any())).willReturn("new-access-token");
         given(jwtService.extractExpiration("new-access-token")).willReturn(Instant.now());
 
         // When
-        AuthenticatedSession result = authService.refresh(oldToken);
+        AuthenticatedSession result = authService.refresh(oldToken, "127.0.0.1", "JUnit");
 
         // Then
         assertThat(result.refreshToken()).isEqualTo("new-refresh-uuid");
-        verify(refreshTokenService, times(1)).rotate(oldToken);
+        verify(refreshTokenService, times(1)).rotate(oldToken, "127.0.0.1", "JUnit");
         verify(refreshTokenService, never()).revokeAllSessions(any());
     }
 
@@ -238,11 +240,11 @@ class AuthServiceTest {
         RefreshTokenSession session = new RefreshTokenSession("new-token", 1L);
         User bannedUser = createMockUser(1L, "banned@gmail.com", UserStatus.BANNED);
 
-        given(refreshTokenService.rotate(token)).willReturn(session);
+        given(refreshTokenService.rotate(token, "127.0.0.1", "JUnit")).willReturn(session);
         given(userRepository.findWithRolesById(1L)).willReturn(Optional.of(bannedUser));
 
         // When & Then
-        assertThatThrownBy(() -> authService.refresh(token))
+        assertThatThrownBy(() -> authService.refresh(token, "127.0.0.1", "JUnit"))
                 .isInstanceOf(AppException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.USER_NOT_ACTIVE);
@@ -258,11 +260,11 @@ class AuthServiceTest {
         String token = "refresh-token";
         RefreshTokenSession session = new RefreshTokenSession("new-token", 99L);
 
-        given(refreshTokenService.rotate(token)).willReturn(session);
+        given(refreshTokenService.rotate(token, "127.0.0.1", "JUnit")).willReturn(session);
         given(userRepository.findWithRolesById(99L)).willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> authService.refresh(token))
+        assertThatThrownBy(() -> authService.refresh(token, "127.0.0.1", "JUnit"))
                 .isInstanceOf(AppException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.UNAUTHORIZED);

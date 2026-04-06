@@ -91,7 +91,7 @@ public class AuthService {
 	}
 
 	@Transactional(readOnly = true)
-	public AuthenticatedSession login(LoginRequest request) {
+	public AuthenticatedSession login(LoginRequest request, String ipAddress, String userAgent) {
 		String normalizedEmail = normalizeEmail(request.email());
 
 		try {
@@ -103,7 +103,7 @@ public class AuthService {
 			User user = userRepository.findWithRolesById(principal.getUserId())
 					.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-			RefreshTokenSession refreshTokenSession = refreshTokenService.issue(user.getId());
+			RefreshTokenSession refreshTokenSession = refreshTokenService.issue(user.getId(), ipAddress, userAgent);
 			return new AuthenticatedSession(buildTokenResponse(user), refreshTokenSession.token());
 		} catch (DisabledException exception) {
 			throw new AppException(ErrorCode.USER_NOT_ACTIVE);
@@ -113,8 +113,8 @@ public class AuthService {
 	}
 
 	@Transactional(readOnly = true)
-	public AuthenticatedSession refresh(String refreshToken) {
-		RefreshTokenSession refreshTokenSession = refreshTokenService.rotate(refreshToken);
+	public AuthenticatedSession refresh(String refreshToken, String ipAddress, String userAgent) {
+		RefreshTokenSession refreshTokenSession = refreshTokenService.rotate(refreshToken, ipAddress, userAgent);
 		User user = userRepository.findWithRolesById(refreshTokenSession.userId())
 				.orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED, "User account is no longer available"));
 

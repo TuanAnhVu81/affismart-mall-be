@@ -1,13 +1,12 @@
 package com.affismart.mall.modules.auth.model;
 
-import java.util.UUID;
-
 public record RefreshTokenSession(
 		String token,
-		Long userId
+		Long userId,
+		String sessionId
 ) {
 
-	public static RefreshTokenSession issue(Long userId) {
-		return new RefreshTokenSession(UUID.randomUUID().toString(), userId);
+	public RefreshTokenSession(String token, Long userId) {
+		this(token, userId, null);
 	}
 }

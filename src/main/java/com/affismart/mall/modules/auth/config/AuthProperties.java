@@ -41,6 +41,12 @@ public class AuthProperties {
 		@NotNull
 		private Duration ttl = Duration.ofDays(7);
 
+		@NotNull
+		private Duration usedTokenTtl = Duration.ofDays(7);
+
+		@NotNull
+		private Duration rotateLockTtl = Duration.ofSeconds(5);
+
 		@NotBlank
 		private String cookieName = "refresh_token";
 
@@ -53,5 +59,9 @@ public class AuthProperties {
 		private boolean secure;
 
 		private boolean httpOnly = true;
+
+		private int maxSessions = 5;
+
+		private int tokenEntropyBytes = 32;
 	}
 }
