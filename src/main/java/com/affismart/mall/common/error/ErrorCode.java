@@ -31,6 +31,11 @@ public enum ErrorCode {
 			"Refresh token reuse detected. All sessions have been revoked",
 			HttpStatus.UNAUTHORIZED
 	),
+	CATEGORY_NOT_FOUND("CATEGORY_NOT_FOUND", "Category was not found", HttpStatus.NOT_FOUND),
+	CATEGORY_SLUG_ALREADY_EXISTS("CATEGORY_SLUG_ALREADY_EXISTS", "Category slug already exists", HttpStatus.CONFLICT),
+	PRODUCT_NOT_FOUND("PRODUCT_NOT_FOUND", "Product was not found", HttpStatus.NOT_FOUND),
+	PRODUCT_SKU_ALREADY_EXISTS("PRODUCT_SKU_ALREADY_EXISTS", "Product SKU already exists", HttpStatus.CONFLICT),
+	PRODUCT_SLUG_ALREADY_EXISTS("PRODUCT_SLUG_ALREADY_EXISTS", "Product slug already exists", HttpStatus.CONFLICT),
 	FILE_STORAGE_NOT_CONFIGURED(
 			"FILE_STORAGE_NOT_CONFIGURED",
 			"File storage provider is not configured",

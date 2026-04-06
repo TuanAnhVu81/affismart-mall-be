@@ -37,6 +37,16 @@ class AffismartMallBeApplicationTests {
 		com.affismart.mall.modules.user.repository.UserRoleRepository userRoleRepository() {
 			return mock(com.affismart.mall.modules.user.repository.UserRoleRepository.class);
 		}
+
+		@Bean
+		com.affismart.mall.modules.product.repository.CategoryRepository categoryRepository() {
+			return mock(com.affismart.mall.modules.product.repository.CategoryRepository.class);
+		}
+
+		@Bean
+		com.affismart.mall.modules.product.repository.ProductRepository productRepository() {
+			return mock(com.affismart.mall.modules.product.repository.ProductRepository.class);
+		}
 	}
 
 }
