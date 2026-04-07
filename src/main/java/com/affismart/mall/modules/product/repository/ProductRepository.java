@@ -1,12 +1,15 @@
 package com.affismart.mall.modules.product.repository;
 
 import com.affismart.mall.modules.product.entity.Product;
+import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -29,6 +32,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 	boolean existsBySkuIgnoreCaseAndIdNot(String sku, Long id);
 
 	boolean existsBySlugIgnoreCaseAndIdNot(String slug, Long id);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT p FROM Product p WHERE p.id IN :ids")
+	List<Product> findAllByIdInForUpdate(@Param("ids") Collection<Long> ids);
 
 	@Query(
 			value = """

@@ -15,6 +15,7 @@ import com.affismart.mall.modules.user.entity.User;
 import com.affismart.mall.modules.user.entity.UserRole;
 import com.affismart.mall.modules.user.mapper.UserMapper;
 import com.affismart.mall.modules.user.repository.RoleRepository;
+import com.affismart.mall.modules.auth.service.RefreshTokenService;
 import com.affismart.mall.modules.user.repository.UserRepository;
 import com.affismart.mall.modules.user.repository.UserRoleRepository;
 import java.util.Locale;
@@ -34,19 +35,22 @@ public class UserService {
 	private final UserRoleRepository userRoleRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final UserMapper userMapper;
+	private final RefreshTokenService refreshTokenService;
 
 	public UserService(
 			UserRepository userRepository,
 			RoleRepository roleRepository,
 			UserRoleRepository userRoleRepository,
 			PasswordEncoder passwordEncoder,
-			UserMapper userMapper
+			UserMapper userMapper,
+			RefreshTokenService refreshTokenService
 	) {
 		this.userRepository = userRepository;
 		this.roleRepository = roleRepository;
 		this.userRoleRepository = userRoleRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.userMapper = userMapper;
+		this.refreshTokenService = refreshTokenService;
 	}
 
 	@Transactional(readOnly = true)
@@ -70,6 +74,8 @@ public class UserService {
 
 		user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
 		userRepository.save(user);
+		// Security: Revoke all active sessions when password is changed
+		refreshTokenService.revokeAllSessions(userId);
 	}
 
 	@Transactional(readOnly = true)
@@ -97,6 +103,12 @@ public class UserService {
 
 		User user = getRequiredUserWithRoles(id);
 		user.setStatus(request.status());
+		
+		if (request.status() == UserStatus.BANNED) {
+			// Security: Revoke all active sessions when user is banned
+			refreshTokenService.revokeAllSessions(id);
+		}
+		
 		return userMapper.toUserProfileResponse(userRepository.save(user));
 	}
 
@@ -105,6 +117,8 @@ public class UserService {
 		User user = getRequiredUserWithRoles(id);
 		user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
 		userRepository.save(user);
+		// Security: Revoke all active sessions when password is force-reset by admin
+		refreshTokenService.revokeAllSessions(id);
 	}
 
 	@Transactional

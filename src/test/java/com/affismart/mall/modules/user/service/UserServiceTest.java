@@ -14,6 +14,7 @@ import com.affismart.mall.modules.user.dto.response.UserSummaryResponse;
 import com.affismart.mall.modules.user.entity.Role;
 import com.affismart.mall.modules.user.entity.User;
 import com.affismart.mall.modules.user.entity.UserRole;
+import com.affismart.mall.modules.auth.service.RefreshTokenService;
 import com.affismart.mall.modules.user.mapper.UserMapper;
 import com.affismart.mall.modules.user.repository.RoleRepository;
 import com.affismart.mall.modules.user.repository.UserRepository;
@@ -46,6 +47,7 @@ class UserServiceTest {
     @Mock private UserRoleRepository userRoleRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private UserMapper userMapper;
+    @Mock private RefreshTokenService refreshTokenService;
 
     @InjectMocks
     private UserService userService;
@@ -138,6 +140,7 @@ class UserServiceTest {
         // Then - verify the new hash was set on the user before saving
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("new_hash");
+        verify(refreshTokenService, times(1)).revokeAllSessions(1L);
     }
 
     @Test
@@ -221,6 +224,7 @@ class UserServiceTest {
         // Then
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getStatus()).isEqualTo(UserStatus.BANNED);
+        verify(refreshTokenService, times(1)).revokeAllSessions(1L);
     }
 
     @Test
@@ -260,6 +264,7 @@ class UserServiceTest {
         // Then - verify the new hash is saved correctly
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("admin_new_hash");
+        verify(refreshTokenService, times(1)).revokeAllSessions(1L);
     }
 
     @Test
