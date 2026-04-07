@@ -2,19 +2,24 @@ package com.affismart.mall.modules.order.service;
 
 import com.affismart.mall.common.enums.OrderStatus;
 import com.affismart.mall.common.error.ErrorCode;
+import com.affismart.mall.common.response.PageResponse;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.order.dto.request.CreateOrderItemRequest;
 import com.affismart.mall.modules.order.dto.request.CreateOrderRequest;
 import com.affismart.mall.modules.order.dto.response.CreateOrderResponse;
+import com.affismart.mall.modules.order.dto.response.OrderDetailResponse;
+import com.affismart.mall.modules.order.dto.response.OrderSummaryResponse;
 import com.affismart.mall.modules.order.entity.Order;
 import com.affismart.mall.modules.order.entity.OrderItem;
 import com.affismart.mall.modules.order.repository.AffiliateAccountLookupRepository;
+import com.affismart.mall.modules.order.repository.OrderItemRepository;
 import com.affismart.mall.modules.order.repository.OrderRepository;
 import com.affismart.mall.modules.product.entity.Product;
 import com.affismart.mall.modules.product.repository.ProductRepository;
 import com.affismart.mall.modules.user.entity.User;
 import com.affismart.mall.modules.user.repository.UserRepository;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,7 +31,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mapstruct.factory.Mappers;
+import com.affismart.mall.modules.order.mapper.OrderMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,10 +59,16 @@ class OrderServiceTest {
 	private ProductRepository productRepository;
 
 	@Mock
+	private OrderItemRepository orderItemRepository;
+
+	@Mock
 	private UserRepository userRepository;
 
 	@Mock
 	private AffiliateAccountLookupRepository affiliateAccountLookupRepository;
+
+	@Spy
+	private OrderMapper orderMapper = Mappers.getMapper(OrderMapper.class);
 
 	@InjectMocks
 	private OrderService orderService;
@@ -265,6 +283,83 @@ class OrderServiceTest {
 		verify(affiliateAccountLookupRepository, never()).findApprovedAccountIdByRefCode(any());
 		verify(orderRepository).save(orderCaptor.capture());
 		assertThat(orderCaptor.getValue().getAffiliateAccountId()).isNull();
+	}
+
+	@Test
+	@DisplayName("getMyOrders: returns paginated order summaries for current user")
+	void getMyOrders_ValidInput_ReturnsPageResponse() {
+		// Given
+		Long userId = 1L;
+		Order order = new Order();
+		order.setId(501L);
+		order.setStatus(OrderStatus.PENDING);
+		order.setTotalAmount(new BigDecimal("120.00"));
+		order.setShippingAddress("123 Test Street");
+		order.setCreatedAt(LocalDateTime.of(2026, 4, 7, 10, 0));
+		Page<Order> page = new PageImpl<>(List.of(order), PageRequest.of(0, 10), 1);
+
+		given(orderRepository.findByUser_Id(any(Long.class), any(Pageable.class))).willReturn(page);
+
+		// When
+		PageResponse<OrderSummaryResponse> result = orderService.getMyOrders(userId, 0, 10, "createdAt", "desc");
+
+		// Then
+		assertThat(result.content()).hasSize(1);
+		assertThat(result.content().getFirst().id()).isEqualTo(501L);
+		assertThat(result.content().getFirst().status()).isEqualTo("PENDING");
+	}
+
+	@Test
+	@DisplayName("getMyOrderDetail: returns order detail and item list for owner")
+	void getMyOrderDetail_ValidOwner_ReturnsDetail() {
+		// Given
+		Long userId = 1L;
+		Long orderId = 700L;
+		Order order = new Order();
+		order.setId(orderId);
+		order.setStatus(OrderStatus.PENDING);
+		order.setTotalAmount(new BigDecimal("200.00"));
+		order.setDiscountAmount(BigDecimal.ZERO);
+		order.setShippingAddress("Home");
+		order.setCreatedAt(LocalDateTime.of(2026, 4, 7, 10, 0));
+		order.setUpdatedAt(LocalDateTime.of(2026, 4, 7, 10, 5));
+
+		Product product = createProduct(99L, new BigDecimal("100.00"), 5, true);
+		OrderItem orderItem = new OrderItem();
+		orderItem.setOrder(order);
+		orderItem.setProduct(product);
+		orderItem.setQuantity(2);
+		orderItem.setPriceAtTime(new BigDecimal("100.00"));
+
+		given(orderRepository.findByIdAndUser_Id(orderId, userId)).willReturn(Optional.of(order));
+		given(orderItemRepository.findByOrder_IdWithProduct(orderId)).willReturn(List.of(orderItem));
+
+		// When
+		OrderDetailResponse result = orderService.getMyOrderDetail(userId, orderId);
+
+		// Then
+		assertThat(result.id()).isEqualTo(orderId);
+		assertThat(result.items()).hasSize(1);
+		assertThat(result.items().getFirst().productId()).isEqualTo(99L);
+		assertThat(result.items().getFirst().lineTotal()).isEqualByComparingTo("200.00");
+	}
+
+	@Test
+	@DisplayName("getMyOrderDetail: Exception - order not found for user throws ORDER_NOT_FOUND")
+	void getMyOrderDetail_OrderNotFound_ThrowsException() {
+		// Given
+		Long userId = 1L;
+		Long orderId = 999L;
+
+		given(orderRepository.findByIdAndUser_Id(orderId, userId)).willReturn(Optional.empty());
+
+		// When + Then
+		assertThatThrownBy(() -> orderService.getMyOrderDetail(userId, orderId))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+
+		verify(orderItemRepository, never()).findByOrder_IdWithProduct(any());
 	}
 
 	// =========================================================

@@ -2,13 +2,18 @@ package com.affismart.mall.modules.order.service;
 
 import com.affismart.mall.common.enums.OrderStatus;
 import com.affismart.mall.common.error.ErrorCode;
+import com.affismart.mall.common.response.PageResponse;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.order.dto.request.CreateOrderItemRequest;
 import com.affismart.mall.modules.order.dto.request.CreateOrderRequest;
 import com.affismart.mall.modules.order.dto.response.CreateOrderResponse;
+import com.affismart.mall.modules.order.dto.response.OrderDetailResponse;
+import com.affismart.mall.modules.order.dto.response.OrderSummaryResponse;
 import com.affismart.mall.modules.order.entity.Order;
 import com.affismart.mall.modules.order.entity.OrderItem;
+import com.affismart.mall.modules.order.mapper.OrderMapper;
 import com.affismart.mall.modules.order.repository.AffiliateAccountLookupRepository;
+import com.affismart.mall.modules.order.repository.OrderItemRepository;
 import com.affismart.mall.modules.order.repository.OrderRepository;
 import com.affismart.mall.modules.product.entity.Product;
 import com.affismart.mall.modules.product.repository.ProductRepository;
@@ -19,7 +24,12 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -30,20 +40,26 @@ public class OrderService {
 	private static final BigDecimal ZERO_AMOUNT = BigDecimal.ZERO;
 
 	private final OrderRepository orderRepository;
+	private final OrderItemRepository orderItemRepository;
 	private final ProductRepository productRepository;
 	private final UserRepository userRepository;
 	private final AffiliateAccountLookupRepository affiliateAccountLookupRepository;
+	private final OrderMapper orderMapper;
 
 	public OrderService(
 			OrderRepository orderRepository,
+			OrderItemRepository orderItemRepository,
 			ProductRepository productRepository,
 			UserRepository userRepository,
-			AffiliateAccountLookupRepository affiliateAccountLookupRepository
+			AffiliateAccountLookupRepository affiliateAccountLookupRepository,
+			OrderMapper orderMapper
 	) {
 		this.orderRepository = orderRepository;
+		this.orderItemRepository = orderItemRepository;
 		this.productRepository = productRepository;
 		this.userRepository = userRepository;
 		this.affiliateAccountLookupRepository = affiliateAccountLookupRepository;
+		this.orderMapper = orderMapper;
 	}
 
 	@Transactional
@@ -79,7 +95,33 @@ public class OrderService {
 
 		order.setTotalAmount(totalAmount);
 		Order savedOrder = orderRepository.save(order);
-		return new CreateOrderResponse(savedOrder.getId());
+		return orderMapper.toCreateOrderResponse(savedOrder);
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<OrderSummaryResponse> getMyOrders(Long userId, int page, int size, String sortBy, String sortDir) {
+		Pageable pageable = PageRequest.of(
+				page,
+				size,
+				Sort.by(resolveDirection(sortDir), normalizeSortProperty(sortBy))
+		);
+
+		Page<OrderSummaryResponse> responsePage = orderRepository.findByUser_Id(userId, pageable)
+				.map(orderMapper::toOrderSummaryResponse);
+		return PageResponse.from(responsePage);
+	}
+
+	@Transactional(readOnly = true)
+	public OrderDetailResponse getMyOrderDetail(Long userId, Long orderId) {
+		Order order = getOrderOwnedByUser(userId, orderId);
+		List<OrderItem> items = orderItemRepository.findByOrder_IdWithProduct(order.getId());
+		return orderMapper.toOrderDetailResponse(order, items);
+	}
+
+	@Transactional(readOnly = true)
+	public Order getOrderOwnedByUser(Long userId, Long orderId) {
+		return orderRepository.findByIdAndUser_Id(orderId, userId)
+				.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 	}
 
 	private void validateNoDuplicateProducts(List<CreateOrderItemRequest> items) {
@@ -137,5 +179,22 @@ public class OrderService {
 		}
 		return affiliateAccountLookupRepository.findApprovedAccountIdByRefCode(refCode.trim())
 				.orElse(null);
+	}
+
+	private Sort.Direction resolveDirection(String sortDir) {
+		return "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+	}
+
+	private String normalizeSortProperty(String sortBy) {
+		if (!StringUtils.hasText(sortBy)) {
+			return "createdAt";
+		}
+		return switch (sortBy.trim().toLowerCase(Locale.ROOT)) {
+			case "id" -> "id";
+			case "status" -> "status";
+			case "totalamount", "total_amount" -> "totalAmount";
+			case "updatedat", "updated_at" -> "updatedAt";
+			default -> "createdAt";
+		};
 	}
 }

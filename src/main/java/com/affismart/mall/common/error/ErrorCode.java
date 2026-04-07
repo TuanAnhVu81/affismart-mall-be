@@ -36,6 +36,13 @@ public enum ErrorCode {
 	PRODUCT_NOT_FOUND("PRODUCT_NOT_FOUND", "Product was not found", HttpStatus.NOT_FOUND),
 	PRODUCT_SKU_ALREADY_EXISTS("PRODUCT_SKU_ALREADY_EXISTS", "Product SKU already exists", HttpStatus.CONFLICT),
 	PRODUCT_SLUG_ALREADY_EXISTS("PRODUCT_SLUG_ALREADY_EXISTS", "Product slug already exists", HttpStatus.CONFLICT),
+	ORDER_NOT_FOUND("ORDER_NOT_FOUND", "Order was not found", HttpStatus.NOT_FOUND),
+	ORDER_CANCELLATION_NOT_ALLOWED(
+			"ORDER_CANCELLATION_NOT_ALLOWED",
+			"Order cancellation is not allowed for current status",
+			HttpStatus.CONFLICT
+	),
+	PAYMENT_REFUND_FAILED("PAYMENT_REFUND_FAILED", "Failed to refund payment for order cancellation", HttpStatus.BAD_GATEWAY),
 	FILE_STORAGE_NOT_CONFIGURED(
 			"FILE_STORAGE_NOT_CONFIGURED",
 			"File storage provider is not configured",

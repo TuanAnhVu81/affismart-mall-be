@@ -2,51 +2,81 @@ package com.affismart.mall;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
-
-import static org.mockito.Mockito.mock;
+import com.affismart.mall.modules.user.repository.UserRepository;
+import com.affismart.mall.modules.user.repository.RoleRepository;
+import com.affismart.mall.modules.user.repository.UserRoleRepository;
+import com.affismart.mall.modules.product.repository.CategoryRepository;
+import com.affismart.mall.modules.product.repository.ProductRepository;
+import com.affismart.mall.modules.order.repository.OrderRepository;
+import com.affismart.mall.modules.order.repository.OrderItemRepository;
+import com.affismart.mall.modules.order.repository.AffiliateAccountLookupRepository;
+import com.affismart.mall.modules.order.repository.CommissionMaintenanceRepository;
+import com.affismart.mall.modules.order.service.OrderPaymentGateway;
+import com.affismart.mall.modules.order.mapper.OrderMapper;
+import com.affismart.mall.modules.product.mapper.ProductMapper;
+import com.affismart.mall.config.RestAuthenticationEntryPoint;
+import com.affismart.mall.config.RestAccessDeniedHandler;
+import com.affismart.mall.modules.auth.security.JwtAuthenticationFilter;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 @SpringBootTest
 class AffismartMallBeApplicationTests {
 
+	@MockitoBean
+	private StringRedisTemplate stringRedisTemplate;
+
+	@MockitoBean
+	private UserRepository userRepository;
+
+	@MockitoBean
+	private RoleRepository roleRepository;
+
+	@MockitoBean
+	private UserRoleRepository userRoleRepository;
+
+	@MockitoBean
+	private CategoryRepository categoryRepository;
+
+	@MockitoBean
+	private ProductRepository productRepository;
+
+	@MockitoBean
+	private OrderRepository orderRepository;
+
+	@MockitoBean
+	private OrderItemRepository orderItemRepository;
+
+	@MockitoBean
+	private AffiliateAccountLookupRepository affiliateAccountLookupRepository;
+
+	@MockitoBean
+	private CommissionMaintenanceRepository commissionMaintenanceRepository;
+
+	@MockitoBean
+	private OrderPaymentGateway orderPaymentGateway;
+
+	@MockitoBean
+	private OrderMapper orderMapper;
+
+	@MockitoBean
+	private ProductMapper productMapper;
+
+	@MockitoBean
+	private RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+
+	@MockitoBean
+	private RestAccessDeniedHandler restAccessDeniedHandler;
+
+	@MockitoBean
+	private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+	@MockitoBean(name = "customUserDetailsService")
+	private UserDetailsService userDetailsService;
+
 	@Test
 	void contextLoads() {
-	}
-
-	@TestConfiguration
-	static class TestBeans {
-
-		@Bean
-		StringRedisTemplate stringRedisTemplate() {
-			return mock(StringRedisTemplate.class);
-		}
-
-		@Bean
-		com.affismart.mall.modules.user.repository.UserRepository userRepository() {
-			return mock(com.affismart.mall.modules.user.repository.UserRepository.class);
-		}
-
-		@Bean
-		com.affismart.mall.modules.user.repository.RoleRepository roleRepository() {
-			return mock(com.affismart.mall.modules.user.repository.RoleRepository.class);
-		}
-
-		@Bean
-		com.affismart.mall.modules.user.repository.UserRoleRepository userRoleRepository() {
-			return mock(com.affismart.mall.modules.user.repository.UserRoleRepository.class);
-		}
-
-		@Bean
-		com.affismart.mall.modules.product.repository.CategoryRepository categoryRepository() {
-			return mock(com.affismart.mall.modules.product.repository.CategoryRepository.class);
-		}
-
-		@Bean
-		com.affismart.mall.modules.product.repository.ProductRepository productRepository() {
-			return mock(com.affismart.mall.modules.product.repository.ProductRepository.class);
-		}
 	}
 
 }

@@ -20,7 +20,10 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mapstruct.factory.Mappers;
+import com.affismart.mall.modules.product.mapper.ProductMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +41,9 @@ class ProductServiceTest {
 
 	@Mock
 	private CategoryRepository categoryRepository;
+
+	@Spy
+	private ProductMapper productMapper = Mappers.getMapper(ProductMapper.class);
 
 	@InjectMocks
 	private ProductService productService;

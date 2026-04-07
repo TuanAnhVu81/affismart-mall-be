@@ -8,6 +8,7 @@ import com.affismart.mall.modules.product.dto.request.UpsertProductRequest;
 import com.affismart.mall.modules.product.dto.response.ProductResponse;
 import com.affismart.mall.modules.product.entity.Category;
 import com.affismart.mall.modules.product.entity.Product;
+import com.affismart.mall.modules.product.mapper.ProductMapper;
 import com.affismart.mall.modules.product.repository.CategoryRepository;
 import com.affismart.mall.modules.product.repository.ProductRepository;
 import com.affismart.mall.modules.product.repository.ProductSpecifications;
@@ -29,47 +30,46 @@ public class ProductService {
 
 	private final ProductRepository productRepository;
 	private final CategoryRepository categoryRepository;
+	private final ProductMapper productMapper;
 
-	public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository) {
+	public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository, ProductMapper productMapper) {
 		this.productRepository = productRepository;
 		this.categoryRepository = categoryRepository;
+		this.productMapper = productMapper;
 	}
 
 	@Transactional
 	public ProductResponse createProduct(UpsertProductRequest request) {
 		Category category = getRequiredCategory(request.categoryId());
-		String normalizedName = normalizeName(request.name());
-		String normalizedSku = normalizeSku(request.sku());
-		String resolvedSlug = resolveSlug(request.slug(), normalizedName);
+		UpsertProductRequest normalizedRequest = normalizeAndResolveRequest(request);
 
-		ensureUniqueForCreate(normalizedSku, resolvedSlug);
+		ensureUniqueForCreate(normalizedRequest.sku(), normalizedRequest.slug());
 
-		Product product = new Product();
-		applyProductFields(product, request, category, normalizedName, normalizedSku, resolvedSlug);
+		Product product = productMapper.toProductEntity(normalizedRequest);
+		product.setCategory(category);
 		product.setActive(true);
 
-		return toResponse(productRepository.save(product));
+		return productMapper.toProductResponse(productRepository.save(product));
 	}
 
 	@Transactional
 	public ProductResponse updateProduct(Long productId, UpsertProductRequest request) {
 		Product product = getRequiredProduct(productId);
 		Category category = getRequiredCategory(request.categoryId());
-		String normalizedName = normalizeName(request.name());
-		String normalizedSku = normalizeSku(request.sku());
-		String resolvedSlug = resolveSlug(request.slug(), normalizedName);
+		UpsertProductRequest normalizedRequest = normalizeAndResolveRequest(request);
 
-		ensureUniqueForUpdate(normalizedSku, resolvedSlug, productId);
+		ensureUniqueForUpdate(normalizedRequest.sku(), normalizedRequest.slug(), productId);
 
-		applyProductFields(product, request, category, normalizedName, normalizedSku, resolvedSlug);
-		return toResponse(productRepository.save(product));
+		productMapper.updateProductFromRequest(normalizedRequest, product);
+		product.setCategory(category);
+		return productMapper.toProductResponse(productRepository.save(product));
 	}
 
 	@Transactional
 	public ProductResponse updateProductStatus(Long productId, UpdateProductStatusRequest request) {
 		Product product = getRequiredProduct(productId);
 		product.setActive(request.active());
-		return toResponse(productRepository.save(product));
+		return productMapper.toProductResponse(productRepository.save(product));
 	}
 
 	@Transactional(readOnly = true)
@@ -94,7 +94,7 @@ public class ProductService {
 						ProductSpecifications.forPublicCatalog(keyword, categoryId, minPrice, maxPrice),
 						pageable
 				)
-				.map(this::toResponse);
+				.map(productMapper::toProductResponse);
 		return PageResponse.from(result);
 	}
 
@@ -102,7 +102,7 @@ public class ProductService {
 	public ProductResponse getActiveProductById(Long productId) {
 		Product product = productRepository.findByIdAndActiveTrue(productId)
 				.orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
-		return toResponse(product);
+		return productMapper.toProductResponse(product);
 	}
 
 	@Transactional(readOnly = true)
@@ -115,26 +115,8 @@ public class ProductService {
 		int normalizedThreshold = Math.max(threshold, 1);
 		return productRepository.findLowStockProducts(normalizedThreshold)
 				.stream()
-				.map(this::toResponse)
+				.map(productMapper::toProductResponse)
 				.toList();
-	}
-
-	private void applyProductFields(
-			Product product,
-			UpsertProductRequest request,
-			Category category,
-			String normalizedName,
-			String normalizedSku,
-			String resolvedSlug
-	) {
-		product.setCategory(category);
-		product.setName(normalizedName);
-		product.setSku(normalizedSku);
-		product.setSlug(resolvedSlug);
-		product.setDescription(normalizeOptionalText(request.description()));
-		product.setPrice(request.price());
-		product.setStockQuantity(request.stockQuantity());
-		product.setImageUrl(normalizeOptionalText(request.imageUrl()));
 	}
 
 	private Product getRequiredProduct(Long productId) {
@@ -169,6 +151,23 @@ public class ProductService {
 			return null;
 		}
 		return value.trim();
+	}
+
+	private UpsertProductRequest normalizeAndResolveRequest(UpsertProductRequest request) {
+		String normalizedName = normalizeName(request.name());
+		String normalizedSku = normalizeSku(request.sku());
+		String resolvedSlug = resolveSlug(request.slug(), normalizedName);
+
+		return new UpsertProductRequest(
+				request.categoryId(),
+				normalizedName,
+				normalizedSku,
+				resolvedSlug,
+				normalizeOptionalText(request.description()),
+				request.price(),
+				request.stockQuantity(),
+				normalizeOptionalText(request.imageUrl())
+		);
 	}
 
 	private Sort resolvePublicSort(String sortBy) {
@@ -213,23 +212,5 @@ public class ProductService {
 		if (productRepository.existsBySlugIgnoreCaseAndIdNot(slug, productId)) {
 			throw new AppException(ErrorCode.PRODUCT_SLUG_ALREADY_EXISTS);
 		}
-	}
-
-	private ProductResponse toResponse(Product product) {
-		return new ProductResponse(
-				product.getId(),
-				product.getCategory().getId(),
-				product.getCategory().getName(),
-				product.getName(),
-				product.getSku(),
-				product.getSlug(),
-				product.getDescription(),
-				product.getPrice(),
-				product.getStockQuantity(),
-				product.getImageUrl(),
-				product.isActive(),
-				product.getCreatedAt(),
-				product.getUpdatedAt()
-		);
 	}
 }

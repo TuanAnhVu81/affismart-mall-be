@@ -9,9 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-	Page<Order> findByUserId(Long userId, Pageable pageable);
+	Page<Order> findByUser_Id(Long userId, Pageable pageable);
 
-	Optional<Order> findByIdAndUserId(Long id, Long userId);
+	Optional<Order> findByIdAndUser_Id(Long id, Long userId);
 
 	Page<Order> findByStatus(OrderStatus status, Pageable pageable);
 }
