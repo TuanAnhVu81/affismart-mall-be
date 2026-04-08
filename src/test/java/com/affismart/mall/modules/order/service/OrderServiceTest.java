@@ -33,6 +33,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 import org.mapstruct.factory.Mappers;
 import com.affismart.mall.modules.order.mapper.OrderMapper;
 import org.springframework.data.domain.Page;
@@ -44,9 +45,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.verify;
+import static org.mockito.BDDMockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OrderService Unit Tests")
@@ -175,6 +178,7 @@ class OrderServiceTest {
 				.isEqualTo(ErrorCode.USER_NOT_FOUND);
 
 		verify(productRepository, never()).findAllByIdInForUpdate(anyCollection());
+		verifyNoInteractions(orderItemRepository);
 	}
 
 	@Test
@@ -203,6 +207,7 @@ class OrderServiceTest {
 				.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
 
 		verify(orderRepository, never()).save(any());
+		verifyNoInteractions(orderItemRepository);
 	}
 
 	@Test
@@ -290,11 +295,7 @@ class OrderServiceTest {
 	void getMyOrders_ValidInput_ReturnsPageResponse() {
 		// Given
 		Long userId = 1L;
-		Order order = new Order();
-		order.setId(501L);
-		order.setStatus(OrderStatus.PENDING);
-		order.setTotalAmount(new BigDecimal("120.00"));
-		order.setShippingAddress("123 Test Street");
+		Order order = createOrder(501L, OrderStatus.PENDING, new BigDecimal("120.00"), "123 Test Street");
 		order.setCreatedAt(LocalDateTime.of(2026, 4, 7, 10, 0));
 		Page<Order> page = new PageImpl<>(List.of(order), PageRequest.of(0, 10), 1);
 
@@ -315,12 +316,8 @@ class OrderServiceTest {
 		// Given
 		Long userId = 1L;
 		Long orderId = 700L;
-		Order order = new Order();
-		order.setId(orderId);
-		order.setStatus(OrderStatus.PENDING);
-		order.setTotalAmount(new BigDecimal("200.00"));
+		Order order = createOrder(orderId, OrderStatus.PENDING, new BigDecimal("200.00"), "Home");
 		order.setDiscountAmount(BigDecimal.ZERO);
-		order.setShippingAddress("Home");
 		order.setCreatedAt(LocalDateTime.of(2026, 4, 7, 10, 0));
 		order.setUpdatedAt(LocalDateTime.of(2026, 4, 7, 10, 5));
 
@@ -362,6 +359,89 @@ class OrderServiceTest {
 		verify(orderItemRepository, never()).findByOrder_IdWithProduct(any());
 	}
 
+	@Test
+	@DisplayName("getOrdersForAdmin: returns paginated orders when filtering by status and time range")
+	void getOrdersForAdmin_WithFilters_ReturnsPageResponse() {
+		// Given
+		Order order = createOrder(900L, OrderStatus.PAID, new BigDecimal("350.00"), "Admin Street");
+		order.setCreatedAt(LocalDateTime.of(2026, 4, 8, 10, 0));
+		Page<Order> page = new PageImpl<>(List.of(order), PageRequest.of(0, 10), 1);
+
+		given(orderRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Order>>any(), any(Pageable.class)))
+				.willReturn(page);
+
+		// When
+		PageResponse<OrderSummaryResponse> result = orderService.getOrdersForAdmin(
+				0,
+				10,
+				"createdAt",
+				"desc",
+				OrderStatus.PAID,
+				LocalDateTime.of(2026, 4, 1, 0, 0),
+				LocalDateTime.of(2026, 4, 30, 23, 59)
+		);
+
+		// Then
+		assertThat(result.content()).hasSize(1);
+		assertThat(result.content().getFirst().id()).isEqualTo(900L);
+		assertThat(result.content().getFirst().status()).isEqualTo("PAID");
+	}
+
+	@Test
+	@DisplayName("getOrdersForAdmin: Exception - invalid date range throws INVALID_INPUT")
+	void getOrdersForAdmin_InvalidDateRange_ThrowsInvalidInput() {
+		// Given
+		LocalDateTime from = LocalDateTime.of(2026, 4, 10, 0, 0);
+		LocalDateTime to = LocalDateTime.of(2026, 4, 1, 0, 0);
+
+		// When + Then
+		assertThatThrownBy(() -> orderService.getOrdersForAdmin(
+				0,
+				10,
+				"createdAt",
+				"desc",
+				null,
+				from,
+				to
+		))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+
+		verify(orderRepository, never()).findAll(org.mockito.ArgumentMatchers.<Specification<Order>>any(), any(Pageable.class));
+	}
+
+	@Test
+	@DisplayName("getOrderDetailForAdmin: returns detail for existing order")
+	void getOrderDetailForAdmin_ExistingOrder_ReturnsDetail() {
+		// Given
+		Long orderId = 777L;
+		Order order = createOrder(orderId, OrderStatus.CONFIRMED, new BigDecimal("480.00"), "Admin detail address");
+		order.setDiscountAmount(BigDecimal.ZERO);
+		order.setCreatedAt(LocalDateTime.of(2026, 4, 8, 8, 0));
+		order.setUpdatedAt(LocalDateTime.of(2026, 4, 8, 9, 0));
+
+		Product product = createProduct(81L, new BigDecimal("240.00"), 10, true);
+		OrderItem orderItem = new OrderItem();
+		orderItem.setOrder(order);
+		orderItem.setProduct(product);
+		orderItem.setQuantity(2);
+		orderItem.setPriceAtTime(new BigDecimal("240.00"));
+
+		given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+		given(orderItemRepository.findByOrder_IdWithProduct(orderId)).willReturn(List.of(orderItem));
+
+		// When
+		OrderDetailResponse result = orderService.getOrderDetailForAdmin(orderId);
+
+		// Then
+		assertThat(result.id()).isEqualTo(orderId);
+		assertThat(result.status()).isEqualTo("CONFIRMED");
+		assertThat(result.items()).hasSize(1);
+		assertThat(result.items().getFirst().lineTotal()).isEqualByComparingTo("480.00");
+		verify(orderRepository).findById(eq(orderId));
+	}
+
 	// =========================================================
 	// Private Helper Methods
 	// =========================================================
@@ -385,5 +465,14 @@ class OrderServiceTest {
 		product.setStockQuantity(stockQuantity);
 		product.setActive(active);
 		return product;
+	}
+
+	private Order createOrder(Long id, OrderStatus status, BigDecimal totalAmount, String shippingAddress) {
+		Order order = new Order();
+		order.setId(id);
+		order.setStatus(status);
+		order.setTotalAmount(totalAmount);
+		order.setShippingAddress(shippingAddress);
+		return order;
 	}
 }

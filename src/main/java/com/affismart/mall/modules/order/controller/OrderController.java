@@ -2,8 +2,10 @@ package com.affismart.mall.modules.order.controller;
 
 import com.affismart.mall.common.response.ApiResponse;
 import com.affismart.mall.common.response.PageResponse;
+import com.affismart.mall.common.enums.OrderStatus;
 import com.affismart.mall.modules.auth.security.UserPrincipal;
 import com.affismart.mall.modules.order.dto.request.CreateOrderRequest;
+import com.affismart.mall.modules.order.dto.request.UpdateOrderStatusRequest;
 import com.affismart.mall.modules.order.dto.response.CreateOrderResponse;
 import com.affismart.mall.modules.order.dto.response.OrderDetailResponse;
 import com.affismart.mall.modules.order.dto.response.OrderSummaryResponse;
@@ -12,6 +14,7 @@ import com.affismart.mall.modules.order.service.OrderStatusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDateTime;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Tag(name = "Orders", description = "Endpoints for checkout and order management")
 @RestController
@@ -87,5 +91,47 @@ public class OrderController {
 	) {
 		orderStatusService.cancelMyOrder(principal.getUserId(), id);
 		return ApiResponse.success("Order cancelled successfully");
+	}
+
+	@Operation(summary = "Get all orders for admin (Admin only)")
+	@PreAuthorize("hasRole('ADMIN')")
+	@GetMapping
+	public ApiResponse<PageResponse<OrderSummaryResponse>> getOrdersForAdmin(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "createdAt") String sortBy,
+			@RequestParam(defaultValue = "desc") String sortDir,
+			@RequestParam(required = false) OrderStatus status,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo
+	) {
+		return ApiResponse.success(
+				"Orders retrieved successfully",
+				orderService.getOrdersForAdmin(page, size, sortBy, sortDir, status, createdFrom, createdTo)
+		);
+	}
+
+	@Operation(summary = "Get order detail for admin (Admin only)")
+	@PreAuthorize("hasRole('ADMIN')")
+	@GetMapping("/{id}")
+	public ApiResponse<OrderDetailResponse> getOrderDetailForAdmin(@PathVariable Long id) {
+		return ApiResponse.success(
+				"Order retrieved successfully",
+				orderService.getOrderDetailForAdmin(id)
+		);
+	}
+
+	@Operation(summary = "Update order status for admin (Admin only)")
+	@PreAuthorize("hasRole('ADMIN')")
+	@PutMapping("/{id}/status")
+	public ApiResponse<OrderDetailResponse> updateOrderStatusByAdmin(
+			@PathVariable Long id,
+			@Valid @RequestBody UpdateOrderStatusRequest request
+	) {
+		orderStatusService.updateOrderStatusByAdmin(id, request.status());
+		return ApiResponse.success(
+				"Order status updated successfully",
+				orderService.getOrderDetailForAdmin(id)
+		);
 	}
 }

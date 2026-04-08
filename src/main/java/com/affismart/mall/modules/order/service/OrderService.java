@@ -15,11 +15,13 @@ import com.affismart.mall.modules.order.mapper.OrderMapper;
 import com.affismart.mall.modules.order.repository.AffiliateAccountLookupRepository;
 import com.affismart.mall.modules.order.repository.OrderItemRepository;
 import com.affismart.mall.modules.order.repository.OrderRepository;
+import com.affismart.mall.modules.order.repository.OrderSpecifications;
 import com.affismart.mall.modules.product.entity.Product;
 import com.affismart.mall.modules.product.repository.ProductRepository;
 import com.affismart.mall.modules.user.entity.User;
 import com.affismart.mall.modules.user.repository.UserRepository;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -112,8 +114,41 @@ public class OrderService {
 	}
 
 	@Transactional(readOnly = true)
+	public PageResponse<OrderSummaryResponse> getOrdersForAdmin(
+			int page,
+			int size,
+			String sortBy,
+			String sortDir,
+			OrderStatus status,
+			LocalDateTime createdFrom,
+			LocalDateTime createdTo
+	) {
+		validateDateRange(createdFrom, createdTo);
+		Pageable pageable = PageRequest.of(
+				Math.max(page, 0),
+				normalizePageSize(size),
+				Sort.by(resolveDirection(sortDir), normalizeSortProperty(sortBy))
+		);
+
+		Page<OrderSummaryResponse> responsePage = orderRepository.findAll(
+						OrderSpecifications.forAdminManagement(status, createdFrom, createdTo),
+						pageable
+				)
+				.map(orderMapper::toOrderSummaryResponse);
+		return PageResponse.from(responsePage);
+	}
+
+	@Transactional(readOnly = true)
 	public OrderDetailResponse getMyOrderDetail(Long userId, Long orderId) {
 		Order order = getOrderOwnedByUser(userId, orderId);
+		List<OrderItem> items = orderItemRepository.findByOrder_IdWithProduct(order.getId());
+		return orderMapper.toOrderDetailResponse(order, items);
+	}
+
+	@Transactional(readOnly = true)
+	public OrderDetailResponse getOrderDetailForAdmin(Long orderId) {
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 		List<OrderItem> items = orderItemRepository.findByOrder_IdWithProduct(order.getId());
 		return orderMapper.toOrderDetailResponse(order, items);
 	}
@@ -196,5 +231,18 @@ public class OrderService {
 			case "updatedat", "updated_at" -> "updatedAt";
 			default -> "createdAt";
 		};
+	}
+
+	private int normalizePageSize(int size) {
+		if (size <= 0) {
+			return 10;
+		}
+		return Math.min(size, 100);
+	}
+
+	private void validateDateRange(LocalDateTime createdFrom, LocalDateTime createdTo) {
+		if (createdFrom != null && createdTo != null && createdFrom.isAfter(createdTo)) {
+			throw new AppException(ErrorCode.INVALID_INPUT, "createdFrom must be before or equal to createdTo");
+		}
 	}
 }

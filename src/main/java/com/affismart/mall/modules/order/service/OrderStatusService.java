@@ -66,6 +66,27 @@ public class OrderStatusService {
 		orderRepository.save(order);
 	}
 
+	@Transactional
+	public void updateOrderStatusByAdmin(Long orderId, OrderStatus targetStatus) {
+		validateAdminTargetStatus(targetStatus);
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+		if (order.getStatus() == targetStatus) {
+			return;
+		}
+
+		if (!order.getStatus().canTransitionTo(targetStatus)) {
+			throw new AppException(
+					ErrorCode.ORDER_STATUS_TRANSITION_NOT_ALLOWED,
+					"Cannot transition order status from " + order.getStatus() + " to " + targetStatus
+			);
+		}
+
+		order.setStatus(targetStatus);
+		orderRepository.save(order);
+	}
+
 	private void restockProducts(List<OrderItem> orderItems) {
 		if (orderItems.isEmpty()) {
 			return;
@@ -86,6 +107,16 @@ public class OrderStatusService {
 				throw new AppException(ErrorCode.PRODUCT_NOT_FOUND, "Product not found while restoring stock");
 			}
 			product.setStockQuantity(product.getStockQuantity() + orderItem.getQuantity());
+		}
+	}
+
+	private void validateAdminTargetStatus(OrderStatus targetStatus) {
+		Set<OrderStatus> allowedTargets = Set.of(OrderStatus.CONFIRMED, OrderStatus.SHIPPED, OrderStatus.DONE);
+		if (targetStatus == null || !allowedTargets.contains(targetStatus)) {
+			throw new AppException(
+					ErrorCode.INVALID_INPUT,
+					"Admin can only update order status to CONFIRMED, SHIPPED, or DONE"
+			);
 		}
 	}
 }

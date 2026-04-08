@@ -11,6 +11,7 @@ import com.affismart.mall.modules.order.repository.OrderRepository;
 import com.affismart.mall.modules.product.entity.Product;
 import com.affismart.mall.modules.product.repository.ProductRepository;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -161,6 +162,81 @@ class OrderStatusServiceTest {
 				.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
 
 		verify(orderPaymentGateway, never()).refundForOrder(any());
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("updateOrderStatusByAdmin: valid transition PAID -> CONFIRMED is saved")
+	void updateOrderStatusByAdmin_ValidTransition_SavesOrder() {
+		// Given
+		Long orderId = 200L;
+		Order order = createOrder(orderId, OrderStatus.PAID, "cs_test_200");
+		given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+
+		// When
+		orderStatusService.updateOrderStatusByAdmin(orderId, OrderStatus.CONFIRMED);
+
+		// Then
+		verify(orderRepository).save(orderCaptor.capture());
+		assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+	}
+
+	@Test
+	@DisplayName("updateOrderStatusByAdmin: invalid target status throws INVALID_INPUT")
+	void updateOrderStatusByAdmin_InvalidTargetStatus_ThrowsInvalidInput() {
+		// When + Then
+		assertThatThrownBy(() -> orderStatusService.updateOrderStatusByAdmin(200L, OrderStatus.CANCELLED))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+
+		verify(orderRepository, never()).findById(any());
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("updateOrderStatusByAdmin: invalid transition throws ORDER_STATUS_TRANSITION_NOT_ALLOWED")
+	void updateOrderStatusByAdmin_InvalidTransition_ThrowsTransitionError() {
+		// Given
+		Long orderId = 201L;
+		Order order = createOrder(orderId, OrderStatus.PENDING, null);
+		given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+
+		// When + Then
+		assertThatThrownBy(() -> orderStatusService.updateOrderStatusByAdmin(orderId, OrderStatus.SHIPPED))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.ORDER_STATUS_TRANSITION_NOT_ALLOWED);
+
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("updateOrderStatusByAdmin: missing order throws ORDER_NOT_FOUND")
+	void updateOrderStatusByAdmin_OrderNotFound_ThrowsOrderNotFound() {
+		// Given
+		Long orderId = 999L;
+		given(orderRepository.findById(orderId)).willReturn(Optional.empty());
+
+		// When + Then
+		assertThatThrownBy(() -> orderStatusService.updateOrderStatusByAdmin(orderId, OrderStatus.CONFIRMED))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("updateOrderStatusByAdmin: rollback DONE -> PENDING is rejected")
+	void updateOrderStatusByAdmin_DoneToPending_ThrowsInvalidInput() {
+		// When + Then
+		assertThatThrownBy(() -> orderStatusService.updateOrderStatusByAdmin(300L, OrderStatus.PENDING))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+
+		verify(orderRepository, never()).findById(any());
 		verify(orderRepository, never()).save(any());
 	}
 

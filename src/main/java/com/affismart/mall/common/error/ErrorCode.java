@@ -42,6 +42,11 @@ public enum ErrorCode {
 			"Order cancellation is not allowed for current status",
 			HttpStatus.CONFLICT
 	),
+	ORDER_STATUS_TRANSITION_NOT_ALLOWED(
+			"ORDER_STATUS_TRANSITION_NOT_ALLOWED",
+			"Order status transition is not allowed",
+			HttpStatus.CONFLICT
+	),
 	PAYMENT_REFUND_FAILED("PAYMENT_REFUND_FAILED", "Failed to refund payment for order cancellation", HttpStatus.BAD_GATEWAY),
 	FILE_STORAGE_NOT_CONFIGURED(
 			"FILE_STORAGE_NOT_CONFIGURED",
