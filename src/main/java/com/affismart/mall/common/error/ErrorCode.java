@@ -47,6 +47,36 @@ public enum ErrorCode {
 			"Order status transition is not allowed",
 			HttpStatus.CONFLICT
 	),
+	ORDER_PAYMENT_NOT_ALLOWED(
+			"ORDER_PAYMENT_NOT_ALLOWED",
+			"Order is not eligible for payment session creation",
+			HttpStatus.CONFLICT
+	),
+	ORDER_PAYMENT_SESSION_ALREADY_EXISTS(
+			"ORDER_PAYMENT_SESSION_ALREADY_EXISTS",
+			"Payment session already exists for this order",
+			HttpStatus.CONFLICT
+	),
+	PAYMENT_GATEWAY_NOT_CONFIGURED(
+			"PAYMENT_GATEWAY_NOT_CONFIGURED",
+			"Payment gateway is not configured",
+			HttpStatus.SERVICE_UNAVAILABLE
+	),
+	PAYMENT_SESSION_CREATION_FAILED(
+			"PAYMENT_SESSION_CREATION_FAILED",
+			"Failed to create payment session",
+			HttpStatus.BAD_GATEWAY
+	),
+	PAYMENT_WEBHOOK_SIGNATURE_INVALID(
+			"PAYMENT_WEBHOOK_SIGNATURE_INVALID",
+			"Stripe webhook signature is invalid",
+			HttpStatus.BAD_REQUEST
+	),
+	PAYMENT_WEBHOOK_CONFIG_INVALID(
+			"PAYMENT_WEBHOOK_CONFIG_INVALID",
+			"Stripe webhook configuration is invalid",
+			HttpStatus.SERVICE_UNAVAILABLE
+	),
 	PAYMENT_REFUND_FAILED("PAYMENT_REFUND_FAILED", "Failed to refund payment for order cancellation", HttpStatus.BAD_GATEWAY),
 	FILE_STORAGE_NOT_CONFIGURED(
 			"FILE_STORAGE_NOT_CONFIGURED",

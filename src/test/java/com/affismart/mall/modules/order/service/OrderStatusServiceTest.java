@@ -240,6 +240,41 @@ class OrderStatusServiceTest {
 		verify(orderRepository, never()).save(any());
 	}
 
+	@Test
+	@DisplayName("markOrderPaidByWebhook: pending order is updated to PAID and saves stripe session id")
+	void markOrderPaidByWebhook_PendingOrder_UpdatesToPaid() {
+		// Given
+		Long orderId = 301L;
+		Order order = createOrder(orderId, OrderStatus.PENDING, null);
+		given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		// When
+		Order result = orderStatusService.markOrderPaidByWebhook(orderId, "cs_paid_301");
+
+		// Then
+		assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
+		assertThat(result.getStripeSessionId()).isEqualTo("cs_paid_301");
+		verify(orderRepository).save(order);
+	}
+
+	@Test
+	@DisplayName("markOrderPaidByWebhook: already paid order returns early without save")
+	void markOrderPaidByWebhook_AlreadyPaid_ReturnsEarly() {
+		// Given
+		Long orderId = 302L;
+		Order order = createOrder(orderId, OrderStatus.PAID, "cs_paid_302");
+		given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+
+		// When
+		Order result = orderStatusService.markOrderPaidByWebhook(orderId, "cs_new");
+
+		// Then
+		assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
+		assertThat(result.getStripeSessionId()).isEqualTo("cs_paid_302");
+		verify(orderRepository, never()).save(any());
+	}
+
 	private Order createOrder(Long id, OrderStatus status, String stripeSessionId) {
 		Order order = new Order();
 		order.setId(id);

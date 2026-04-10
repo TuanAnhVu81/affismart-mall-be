@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class OrderStatusService {
@@ -87,6 +88,26 @@ public class OrderStatusService {
 		orderRepository.save(order);
 	}
 
+	@Transactional
+	public Order markOrderPaidByWebhook(Long orderId, String stripeSessionId) {
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+		if (isPaidOrHigher(order.getStatus())) {
+			return order;
+		}
+
+		if (order.getStatus() != OrderStatus.PENDING) {
+			return order;
+		}
+
+		order.setStatus(OrderStatus.PAID);
+		if (StringUtils.hasText(stripeSessionId)) {
+			order.setStripeSessionId(stripeSessionId.trim());
+		}
+		return orderRepository.save(order);
+	}
+
 	private void restockProducts(List<OrderItem> orderItems) {
 		if (orderItems.isEmpty()) {
 			return;
@@ -118,5 +139,12 @@ public class OrderStatusService {
 					"Admin can only update order status to CONFIRMED, SHIPPED, or DONE"
 			);
 		}
+	}
+
+	private boolean isPaidOrHigher(OrderStatus status) {
+		return status == OrderStatus.PAID
+				|| status == OrderStatus.CONFIRMED
+				|| status == OrderStatus.SHIPPED
+				|| status == OrderStatus.DONE;
 	}
 }

@@ -62,6 +62,14 @@ app:
       api-key: ${CLOUDINARY_API_KEY:}
       api-secret: ${CLOUDINARY_API_SECRET:}
       folder: ${CLOUDINARY_FOLDER:affismart/products}
+  payment:
+    stripe:
+      enabled: ${STRIPE_ENABLED:false}
+      secret-key: ${STRIPE_SECRET_KEY:}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}}
+      cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/payment/cancel}
+      currency: ${STRIPE_CURRENCY:vnd}
   inventory:
     low-stock-threshold: 10
     low-stock-cron: "0 0 0 * * ?"
