@@ -57,6 +57,27 @@ public enum ErrorCode {
 			"Payment session already exists for this order",
 			HttpStatus.CONFLICT
 	),
+	AFFILIATE_ACCOUNT_NOT_FOUND("AFFILIATE_ACCOUNT_NOT_FOUND", "Affiliate account was not found", HttpStatus.NOT_FOUND),
+	AFFILIATE_ACCOUNT_ALREADY_EXISTS(
+			"AFFILIATE_ACCOUNT_ALREADY_EXISTS",
+			"Affiliate account is already registered for this user",
+			HttpStatus.CONFLICT
+	),
+	AFFILIATE_ACCOUNT_NOT_APPROVED(
+			"AFFILIATE_ACCOUNT_NOT_APPROVED",
+			"Affiliate account is not approved",
+			HttpStatus.FORBIDDEN
+	),
+	AFFILIATE_ROLE_NOT_FOUND(
+			"AFFILIATE_ROLE_NOT_FOUND",
+			"Affiliate role is not configured",
+			HttpStatus.INTERNAL_SERVER_ERROR
+	),
+	REFERRAL_CODE_GENERATION_FAILED(
+			"REFERRAL_CODE_GENERATION_FAILED",
+			"Failed to generate unique referral code",
+			HttpStatus.INTERNAL_SERVER_ERROR
+	),
 	PAYMENT_GATEWAY_NOT_CONFIGURED(
 			"PAYMENT_GATEWAY_NOT_CONFIGURED",
 			"Payment gateway is not configured",

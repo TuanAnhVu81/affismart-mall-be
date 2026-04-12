@@ -16,6 +16,12 @@ import com.affismart.mall.modules.order.repository.CommissionMaintenanceReposito
 import com.affismart.mall.modules.order.service.OrderPaymentGateway;
 import com.affismart.mall.modules.order.mapper.OrderMapper;
 import com.affismart.mall.modules.product.mapper.ProductMapper;
+import com.affismart.mall.modules.affiliate.mapper.AffiliateMapper;
+import com.affismart.mall.modules.affiliate.repository.AffiliateAccountRepository;
+import com.affismart.mall.modules.affiliate.repository.ReferralLinkRepository;
+import com.affismart.mall.modules.affiliate.repository.BlockedClickLogRepository;
+import com.affismart.mall.modules.affiliate.repository.CommissionRepository;
+import com.affismart.mall.modules.affiliate.repository.PayoutRequestRepository;
 import com.affismart.mall.config.RestAuthenticationEntryPoint;
 import com.affismart.mall.config.RestAccessDeniedHandler;
 import com.affismart.mall.modules.auth.security.JwtAuthenticationFilter;
@@ -62,6 +68,24 @@ class AffismartMallBeApplicationTests {
 
 	@MockitoBean
 	private ProductMapper productMapper;
+
+	@MockitoBean
+	private AffiliateMapper affiliateMapper;
+
+	@MockitoBean
+	private AffiliateAccountRepository affiliateAccountRepository;
+
+	@MockitoBean
+	private ReferralLinkRepository referralLinkRepository;
+
+	@MockitoBean
+	private BlockedClickLogRepository blockedClickLogRepository;
+
+	@MockitoBean
+	private CommissionRepository commissionRepository;
+
+	@MockitoBean
+	private PayoutRequestRepository payoutRequestRepository;
 
 	@MockitoBean
 	private RestAuthenticationEntryPoint restAuthenticationEntryPoint;
