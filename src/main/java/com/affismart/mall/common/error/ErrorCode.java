@@ -78,6 +78,11 @@ public enum ErrorCode {
 			"Failed to generate unique referral code",
 			HttpStatus.INTERNAL_SERVER_ERROR
 	),
+	AFFILIATE_CLICK_RATE_LIMITED(
+			"AFFILIATE_CLICK_RATE_LIMITED",
+			"Too many affiliate click requests from this IP",
+			HttpStatus.TOO_MANY_REQUESTS
+	),
 	PAYMENT_GATEWAY_NOT_CONFIGURED(
 			"PAYMENT_GATEWAY_NOT_CONFIGURED",
 			"Payment gateway is not configured",

@@ -1,15 +1,19 @@
 package com.affismart.mall.modules.affiliate.controller;
 
 import com.affismart.mall.common.response.ApiResponse;
+import com.affismart.mall.common.util.ClientIpResolver;
 import com.affismart.mall.modules.affiliate.dto.request.AffiliateRegisterRequest;
 import com.affismart.mall.modules.affiliate.dto.request.CreateReferralLinkRequest;
+import com.affismart.mall.modules.affiliate.dto.request.TrackClickRequest;
 import com.affismart.mall.modules.affiliate.dto.request.UpdateAffiliateAccountStatusRequest;
 import com.affismart.mall.modules.affiliate.dto.response.AffiliateAccountResponse;
 import com.affismart.mall.modules.affiliate.dto.response.ReferralLinkResponse;
 import com.affismart.mall.modules.affiliate.service.AffiliateService;
+import com.affismart.mall.modules.affiliate.service.ClickTrackingService;
 import com.affismart.mall.modules.auth.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,9 +30,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AffiliateController {
 
 	private final AffiliateService affiliateService;
+	private final ClickTrackingService clickTrackingService;
 
-	public AffiliateController(AffiliateService affiliateService) {
+	public AffiliateController(AffiliateService affiliateService, ClickTrackingService clickTrackingService) {
 		this.affiliateService = affiliateService;
+		this.clickTrackingService = clickTrackingService;
 	}
 
 	@Operation(summary = "Register as affiliate (Customer only)")
@@ -68,5 +74,16 @@ public class AffiliateController {
 				"Referral link created successfully",
 				affiliateService.createReferralLink(principal.getUserId(), request)
 		);
+	}
+
+	@Operation(summary = "Track referral click (Public)")
+	@PostMapping("/track-click")
+	public ApiResponse<Void> trackClick(
+			@Valid @RequestBody TrackClickRequest request,
+			HttpServletRequest httpServletRequest
+	) {
+		String clientIp = ClientIpResolver.resolve(httpServletRequest);
+		clickTrackingService.trackClick(request.refCode(), clientIp);
+		return ApiResponse.success("Valid");
 	}
 }

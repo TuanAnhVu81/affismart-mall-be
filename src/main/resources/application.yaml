@@ -73,3 +73,9 @@ app:
   inventory:
     low-stock-threshold: 10
     low-stock-cron: "0 0 0 * * ?"
+  affiliate:
+    click-tracking:
+      max-clicks-per-window: 5
+      window: 1m
+      blocked-ip-ttl: 5m
+      block-reason: RATE_LIMIT_EXCEEDED

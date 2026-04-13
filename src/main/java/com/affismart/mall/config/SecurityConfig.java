@@ -46,6 +46,7 @@ public class SecurityConfig {
 						.requestMatchers("/error").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/payment/webhook").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/v1/affiliate/track-click").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/v1/products/low-stock").hasRole("ADMIN")
 						.requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**").permitAll()
 						.requestMatchers("/api/v1/ai/**").permitAll()
