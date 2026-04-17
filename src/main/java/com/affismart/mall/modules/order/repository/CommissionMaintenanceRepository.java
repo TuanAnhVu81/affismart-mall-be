@@ -1,6 +1,5 @@
 package com.affismart.mall.modules.order.repository;
 
-import java.math.BigDecimal;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -15,27 +14,20 @@ public class CommissionMaintenanceRepository {
 			  AND status = 'PENDING'
 			""";
 
-	private static final String INSERT_PENDING_COMMISSION_SQL = """
-			INSERT INTO commissions (
-			    affiliate_account_id,
-			    order_id,
-			    amount,
-			    rate_snapshot,
-			    status,
-			    created_at,
-			    updated_at
+	private static final String APPROVE_PENDING_AND_ADD_BALANCE_SQL = """
+			WITH approved_commission AS (
+			    UPDATE commissions
+			    SET status = 'APPROVED',
+			        updated_at = CURRENT_TIMESTAMP
+			    WHERE order_id = ?
+			      AND status = 'PENDING'
+			    RETURNING affiliate_account_id, amount
 			)
-			SELECT aa.id,
-			       ?,
-			       ROUND((? * aa.commission_rate) / 100.0, 2),
-			       aa.commission_rate,
-			       'PENDING',
-			       CURRENT_TIMESTAMP,
-			       CURRENT_TIMESTAMP
-			FROM affiliate_accounts aa
-			WHERE aa.id = ?
-			  AND aa.status = 'APPROVED'
-			ON CONFLICT (order_id) DO NOTHING
+			UPDATE affiliate_accounts aa
+			SET balance = aa.balance + ac.amount,
+			    updated_at = CURRENT_TIMESTAMP
+			FROM approved_commission ac
+			WHERE aa.id = ac.affiliate_account_id
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -48,12 +40,7 @@ public class CommissionMaintenanceRepository {
 		return jdbcTemplate.update(REJECT_PENDING_BY_ORDER_SQL, orderId);
 	}
 
-	public int insertPendingCommission(Long affiliateAccountId, Long orderId, BigDecimal orderTotalAmount) {
-		return jdbcTemplate.update(
-				INSERT_PENDING_COMMISSION_SQL,
-				orderId,
-				orderTotalAmount,
-				affiliateAccountId
-		);
+	public int approvePendingCommissionAndAddBalanceByOrderId(Long orderId) {
+		return jdbcTemplate.update(APPROVE_PENDING_AND_ADD_BALANCE_SQL, orderId);
 	}
 }

@@ -1,8 +1,10 @@
 package com.affismart.mall.modules.affiliate.mapper;
 
 import com.affismart.mall.modules.affiliate.dto.response.AffiliateAccountResponse;
+import com.affismart.mall.modules.affiliate.dto.response.PayoutRequestResponse;
 import com.affismart.mall.modules.affiliate.dto.response.ReferralLinkResponse;
 import com.affismart.mall.modules.affiliate.entity.AffiliateAccount;
+import com.affismart.mall.modules.affiliate.entity.PayoutRequest;
 import com.affismart.mall.modules.affiliate.entity.ReferralLink;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -22,4 +24,8 @@ public interface AffiliateMapper {
 	@Mapping(target = "affiliateAccountId", source = "affiliateAccount.id")
 	@Mapping(target = "productId", source = "product.id")
 	ReferralLinkResponse toReferralLinkResponse(ReferralLink referralLink);
+
+	@Mapping(target = "affiliateAccountId", source = "affiliateAccount.id")
+	@Mapping(target = "status", expression = "java(payoutRequest.getStatus().name())")
+	PayoutRequestResponse toPayoutRequestResponse(PayoutRequest payoutRequest);
 }

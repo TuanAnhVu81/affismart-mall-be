@@ -86,6 +86,7 @@ public class OrderStatusService {
 
 		order.setStatus(targetStatus);
 		orderRepository.save(order);
+		handleCommissionResolutionOnStatusChange(order);
 	}
 
 	@Transactional
@@ -138,6 +139,14 @@ public class OrderStatusService {
 					ErrorCode.INVALID_INPUT,
 					"Admin can only update order status to CONFIRMED, SHIPPED, or DONE"
 			);
+		}
+	}
+
+	private void handleCommissionResolutionOnStatusChange(Order order) {
+		if (order.getStatus() == OrderStatus.DONE) {
+			commissionMaintenanceRepository.approvePendingCommissionAndAddBalanceByOrderId(order.getId());
+		} else if (order.getStatus() == OrderStatus.CANCELLED) {
+			commissionMaintenanceRepository.rejectPendingCommissionByOrderId(order.getId());
 		}
 	}
 

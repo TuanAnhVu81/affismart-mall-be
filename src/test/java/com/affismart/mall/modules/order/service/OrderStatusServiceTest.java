@@ -58,6 +58,10 @@ class OrderStatusServiceTest {
 	@Captor
 	private ArgumentCaptor<Order> orderCaptor;
 
+	// =========================================================
+	// cancelMyOrder()
+	// =========================================================
+
 	@Test
 	@DisplayName("cancelMyOrder: PENDING order is cancelled and stock is restored")
 	void cancelMyOrder_PendingStatus_RestoresStockAndCancels() {
@@ -165,6 +169,10 @@ class OrderStatusServiceTest {
 		verify(orderRepository, never()).save(any());
 	}
 
+	// =========================================================
+	// updateOrderStatusByAdmin()
+	// =========================================================
+
 	@Test
 	@DisplayName("updateOrderStatusByAdmin: valid transition PAID -> CONFIRMED is saved")
 	void updateOrderStatusByAdmin_ValidTransition_SavesOrder() {
@@ -179,6 +187,24 @@ class OrderStatusServiceTest {
 		// Then
 		verify(orderRepository).save(orderCaptor.capture());
 		assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+		verify(commissionMaintenanceRepository, never()).approvePendingCommissionAndAddBalanceByOrderId(orderId);
+	}
+
+	@Test
+	@DisplayName("updateOrderStatusByAdmin: SHIPPED -> DONE approves pending commission and adds affiliate balance")
+	void updateOrderStatusByAdmin_ShippedToDone_ApprovesCommissionAndAddsBalance() {
+		// Given
+		Long orderId = 210L;
+		Order order = createOrder(orderId, OrderStatus.SHIPPED, "cs_test_210");
+		given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+
+		// When
+		orderStatusService.updateOrderStatusByAdmin(orderId, OrderStatus.DONE);
+
+		// Then
+		verify(orderRepository).save(orderCaptor.capture());
+		assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.DONE);
+		verify(commissionMaintenanceRepository).approvePendingCommissionAndAddBalanceByOrderId(orderId);
 	}
 
 	@Test
@@ -240,6 +266,10 @@ class OrderStatusServiceTest {
 		verify(orderRepository, never()).save(any());
 	}
 
+	// =========================================================
+	// markOrderPaidByWebhook()
+	// =========================================================
+
 	@Test
 	@DisplayName("markOrderPaidByWebhook: pending order is updated to PAID and saves stripe session id")
 	void markOrderPaidByWebhook_PendingOrder_UpdatesToPaid() {
@@ -274,6 +304,10 @@ class OrderStatusServiceTest {
 		assertThat(result.getStripeSessionId()).isEqualTo("cs_paid_302");
 		verify(orderRepository, never()).save(any());
 	}
+
+	// =========================================================
+	// Private Helper Methods
+	// =========================================================
 
 	private Order createOrder(Long id, OrderStatus status, String stripeSessionId) {
 		Order order = new Order();
