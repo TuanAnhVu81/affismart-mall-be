@@ -7,6 +7,7 @@ import com.affismart.mall.modules.affiliate.entity.AffiliateAccount;
 import com.affismart.mall.modules.affiliate.entity.Commission;
 import com.affismart.mall.modules.affiliate.repository.AffiliateAccountRepository;
 import com.affismart.mall.modules.affiliate.repository.CommissionRepository;
+import com.affismart.mall.modules.affiliate.repository.ReferralLinkRepository;
 import com.affismart.mall.modules.order.entity.Order;
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -36,6 +37,9 @@ class CommissionServiceTest {
 	@Mock
 	private AffiliateAccountRepository affiliateAccountRepository;
 
+	@Mock
+	private ReferralLinkRepository referralLinkRepository;
+
 	@InjectMocks
 	private CommissionService commissionService;
 
@@ -50,7 +54,7 @@ class CommissionServiceTest {
 	@DisplayName("createPendingCommissionForPaidOrder: order without affiliate is ignored")
 	void createPendingCommissionForPaidOrder_NoAffiliate_Ignored() {
 		// Given
-		Order order = createOrder(1L, null, OrderStatus.PAID, new BigDecimal("100.00"));
+		Order order = createOrder(1L, null, null, OrderStatus.PAID, new BigDecimal("100.00"));
 
 		// When
 		commissionService.createPendingCommissionForPaidOrder(order);
@@ -63,7 +67,7 @@ class CommissionServiceTest {
 	@DisplayName("createPendingCommissionForPaidOrder: non-paid order is ignored")
 	void createPendingCommissionForPaidOrder_NonPaidOrder_Ignored() {
 		// Given
-		Order order = createOrder(2L, 99L, OrderStatus.PENDING, new BigDecimal("100.00"));
+		Order order = createOrder(2L, 99L, null, OrderStatus.PENDING, new BigDecimal("100.00"));
 
 		// When
 		commissionService.createPendingCommissionForPaidOrder(order);
@@ -76,7 +80,7 @@ class CommissionServiceTest {
 	@DisplayName("createPendingCommissionForPaidOrder: existing commission is skipped")
 	void createPendingCommissionForPaidOrder_ExistingCommission_Skipped() {
 		// Given
-		Order order = createOrder(3L, 99L, OrderStatus.PAID, new BigDecimal("250.00"));
+		Order order = createOrder(3L, 99L, null, OrderStatus.PAID, new BigDecimal("250.00"));
 		given(commissionRepository.existsByOrder_Id(3L)).willReturn(true);
 
 		// When
@@ -92,7 +96,7 @@ class CommissionServiceTest {
 	@DisplayName("createPendingCommissionForPaidOrder: approved affiliate snapshots rate and saves pending commission")
 	void createPendingCommissionForPaidOrder_ApprovedAffiliate_SavesCommissionWithSnapshot() {
 		// Given
-		Order order = createOrder(4L, 88L, OrderStatus.PAID, new BigDecimal("250.00"));
+		Order order = createOrder(4L, 88L, 990L, OrderStatus.PAID, new BigDecimal("250.00"));
 		AffiliateAccount affiliateAccount = createAffiliateAccount(88L, new BigDecimal("12.50"));
 
 		given(commissionRepository.existsByOrder_Id(4L)).willReturn(false);
@@ -110,13 +114,14 @@ class CommissionServiceTest {
 		assertThat(savedCommission.getRateSnapshot()).isEqualByComparingTo("12.50");
 		assertThat(savedCommission.getAmount()).isEqualByComparingTo("31.25");
 		assertThat(savedCommission.getStatus()).isEqualTo(CommissionStatus.PENDING);
+		verify(referralLinkRepository).incrementTotalConversionsById(990L);
 	}
 
 	@Test
 	@DisplayName("createPendingCommissionForPaidOrder: non-approved affiliate does not create commission")
 	void createPendingCommissionForPaidOrder_NonApprovedAffiliate_Ignored() {
 		// Given
-		Order order = createOrder(5L, 77L, OrderStatus.PAID, new BigDecimal("150.00"));
+		Order order = createOrder(5L, 77L, 123L, OrderStatus.PAID, new BigDecimal("150.00"));
 		given(commissionRepository.existsByOrder_Id(5L)).willReturn(false);
 		given(affiliateAccountRepository.findByIdAndStatus(77L, AffiliateAccountStatus.APPROVED))
 				.willReturn(Optional.empty());
@@ -126,16 +131,43 @@ class CommissionServiceTest {
 
 		// Then
 		verify(commissionRepository, never()).save(any());
+		verify(referralLinkRepository, never()).incrementTotalConversionsById(any());
+	}
+
+	@Test
+	@DisplayName("createPendingCommissionForPaidOrder: order without referral link saves commission but skips increment")
+	void createPendingCommissionForPaidOrder_NullReferralLink_SavesCommissionWithoutIncrementing() {
+		// Given
+		Order order = createOrder(6L, 88L, null, OrderStatus.PAID, new BigDecimal("250.00"));
+		AffiliateAccount affiliateAccount = createAffiliateAccount(88L, new BigDecimal("10.00"));
+
+		given(commissionRepository.existsByOrder_Id(6L)).willReturn(false);
+		given(affiliateAccountRepository.findByIdAndStatus(88L, AffiliateAccountStatus.APPROVED))
+				.willReturn(Optional.of(affiliateAccount));
+
+		// When
+		commissionService.createPendingCommissionForPaidOrder(order);
+
+		// Then
+		verify(commissionRepository).save(any(Commission.class));
+		verify(referralLinkRepository, never()).incrementTotalConversionsById(any());
 	}
 
 	// =========================================================
 	// Private Helper Methods
 	// =========================================================
 
-	private Order createOrder(Long orderId, Long affiliateAccountId, OrderStatus status, BigDecimal totalAmount) {
+	private Order createOrder(
+			Long orderId,
+			Long affiliateAccountId,
+			Long referralLinkId,
+			OrderStatus status,
+			BigDecimal totalAmount
+	) {
 		Order order = new Order();
 		order.setId(orderId);
 		order.setAffiliateAccountId(affiliateAccountId);
+		order.setReferralLinkId(referralLinkId);
 		order.setStatus(status);
 		order.setTotalAmount(totalAmount);
 		return order;

@@ -11,6 +11,7 @@ import com.affismart.mall.modules.order.dto.response.OrderDetailResponse;
 import com.affismart.mall.modules.order.dto.response.OrderSummaryResponse;
 import com.affismart.mall.modules.order.entity.Order;
 import com.affismart.mall.modules.order.entity.OrderItem;
+import com.affismart.mall.modules.order.repository.AffiliateAttribution;
 import com.affismart.mall.modules.order.mapper.OrderMapper;
 import com.affismart.mall.modules.order.repository.AffiliateAccountLookupRepository;
 import com.affismart.mall.modules.order.repository.OrderItemRepository;
@@ -186,12 +187,15 @@ public class OrderService {
 	}
 
 	private Order initializeOrder(User user, CreateOrderRequest request) {
+		AffiliateAttribution attribution = resolveAffiliateAttribution(request.refCode());
+
 		Order order = new Order();
 		order.setUser(user);
 		order.setStatus(OrderStatus.PENDING);
 		order.setShippingAddress(request.shippingAddress().trim());
 		order.setDiscountAmount(ZERO_AMOUNT);
-		order.setAffiliateAccountId(resolveAffiliateAccountId(request.refCode()));
+		order.setAffiliateAccountId(attribution != null ? attribution.affiliateAccountId() : null);
+		order.setReferralLinkId(attribution != null ? attribution.referralLinkId() : null);
 		return order;
 	}
 
@@ -208,11 +212,11 @@ public class OrderService {
 		}
 	}
 
-	private Long resolveAffiliateAccountId(String refCode) {
+	private AffiliateAttribution resolveAffiliateAttribution(String refCode) {
 		if (!StringUtils.hasText(refCode)) {
 			return null;
 		}
-		return affiliateAccountLookupRepository.findApprovedAccountIdByRefCode(refCode.trim())
+		return affiliateAccountLookupRepository.findAttributionByRefCode(refCode.trim())
 				.orElse(null);
 	}
 

@@ -11,6 +11,7 @@ import com.affismart.mall.modules.order.dto.response.OrderDetailResponse;
 import com.affismart.mall.modules.order.dto.response.OrderSummaryResponse;
 import com.affismart.mall.modules.order.entity.Order;
 import com.affismart.mall.modules.order.entity.OrderItem;
+import com.affismart.mall.modules.order.repository.AffiliateAttribution;
 import com.affismart.mall.modules.order.repository.AffiliateAccountLookupRepository;
 import com.affismart.mall.modules.order.repository.OrderItemRepository;
 import com.affismart.mall.modules.order.repository.OrderRepository;
@@ -102,7 +103,8 @@ class OrderServiceTest {
 
 		given(userRepository.findById(userId)).willReturn(Optional.of(user));
 		given(productRepository.findAllByIdInForUpdate(anyCollection())).willReturn(List.of(productOne, productTwo));
-		given(affiliateAccountLookupRepository.findApprovedAccountIdByRefCode("AFFI-01")).willReturn(Optional.of(99L));
+		given(affiliateAccountLookupRepository.findAttributionByRefCode("AFFI-01"))
+				.willReturn(Optional.of(new AffiliateAttribution(99L, 777L)));
 		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> {
 			Order order = invocation.getArgument(0);
 			order.setId(55L);
@@ -123,6 +125,7 @@ class OrderServiceTest {
 		assertThat(savedOrder.getDiscountAmount()).isEqualByComparingTo("0.00");
 		assertThat(savedOrder.getTotalAmount()).isEqualByComparingTo("450.00");
 		assertThat(savedOrder.getAffiliateAccountId()).isEqualTo(99L);
+		assertThat(savedOrder.getReferralLinkId()).isEqualTo(777L);
 		assertThat(savedOrder.getOrderItems()).hasSize(2);
 
 		Map<Long, OrderItem> itemsByProductId = savedOrder.getOrderItems().stream()
@@ -285,9 +288,10 @@ class OrderServiceTest {
 		orderService.createOrder(userId, request);
 
 		// Then
-		verify(affiliateAccountLookupRepository, never()).findApprovedAccountIdByRefCode(any());
+		verify(affiliateAccountLookupRepository, never()).findAttributionByRefCode(any());
 		verify(orderRepository).save(orderCaptor.capture());
 		assertThat(orderCaptor.getValue().getAffiliateAccountId()).isNull();
+		assertThat(orderCaptor.getValue().getReferralLinkId()).isNull();
 	}
 
 	@Test

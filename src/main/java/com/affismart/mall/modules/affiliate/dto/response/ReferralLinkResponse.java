@@ -6,6 +6,7 @@ public record ReferralLinkResponse(
 		Long id,
 		Long affiliateAccountId,
 		Long productId,
+		String productName,
 		String refCode,
 		Integer totalClicks,
 		Integer totalConversions,

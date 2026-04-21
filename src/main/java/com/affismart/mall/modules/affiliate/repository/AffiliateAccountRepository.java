@@ -4,6 +4,8 @@ import com.affismart.mall.common.enums.AffiliateAccountStatus;
 import com.affismart.mall.modules.affiliate.entity.AffiliateAccount;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -28,4 +30,14 @@ public interface AffiliateAccountRepository extends JpaRepository<AffiliateAccou
 
 	@EntityGraph(attributePaths = {"user"})
 	Optional<AffiliateAccount> findWithUserById(Long id);
+
+	@EntityGraph(attributePaths = {"user"})
+	Optional<AffiliateAccount> findWithUserByUser_Id(Long userId);
+
+	@EntityGraph(attributePaths = {"user"})
+	Page<AffiliateAccount> findAllByStatus(AffiliateAccountStatus status, Pageable pageable);
+
+	@Override
+	@EntityGraph(attributePaths = {"user"})
+	Page<AffiliateAccount> findAll(Pageable pageable);
 }

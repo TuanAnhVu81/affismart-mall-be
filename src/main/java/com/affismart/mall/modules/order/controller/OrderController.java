@@ -60,8 +60,8 @@ public class OrderController {
 			@AuthenticationPrincipal UserPrincipal principal,
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "10") int size,
-			@RequestParam(defaultValue = "createdAt") String sortBy,
-			@RequestParam(defaultValue = "desc") String sortDir
+			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
+			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir
 	) {
 		return ApiResponse.success(
 				"My orders retrieved successfully",
@@ -99,11 +99,11 @@ public class OrderController {
 	public ApiResponse<PageResponse<OrderSummaryResponse>> getOrdersForAdmin(
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "10") int size,
-			@RequestParam(defaultValue = "createdAt") String sortBy,
-			@RequestParam(defaultValue = "desc") String sortDir,
+			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
+			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
 			@RequestParam(required = false) OrderStatus status,
-			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
-			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo
+			@RequestParam(name = "from_date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
+			@RequestParam(name = "to_date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo
 	) {
 		return ApiResponse.success(
 				"Orders retrieved successfully",

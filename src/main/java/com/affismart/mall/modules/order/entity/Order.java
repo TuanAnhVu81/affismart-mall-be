@@ -45,6 +45,9 @@ public class Order extends BaseEntity {
 	@Column(name = "affiliate_account_id")
 	private Long affiliateAccountId;
 
+	@Column(name = "referral_link_id")
+	private Long referralLinkId;
+
 	@Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
 	private BigDecimal totalAmount;
 

@@ -1,18 +1,23 @@
 package com.affismart.mall.modules.affiliate.service;
 
 import com.affismart.mall.common.enums.AffiliateAccountStatus;
+import com.affismart.mall.common.enums.CommissionStatus;
 import com.affismart.mall.common.enums.RoleName;
 import com.affismart.mall.common.error.ErrorCode;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.affiliate.dto.request.AffiliateRegisterRequest;
 import com.affismart.mall.modules.affiliate.dto.request.CreateReferralLinkRequest;
 import com.affismart.mall.modules.affiliate.dto.request.UpdateAffiliateAccountStatusRequest;
+import com.affismart.mall.modules.affiliate.dto.request.UpdateAffiliateCommissionRateRequest;
+import com.affismart.mall.modules.affiliate.dto.response.AdminAffiliateAccountResponse;
 import com.affismart.mall.modules.affiliate.dto.response.AffiliateAccountResponse;
+import com.affismart.mall.modules.affiliate.dto.response.AffiliateDashboardResponse;
 import com.affismart.mall.modules.affiliate.dto.response.ReferralLinkResponse;
 import com.affismart.mall.modules.affiliate.entity.AffiliateAccount;
 import com.affismart.mall.modules.affiliate.entity.ReferralLink;
 import com.affismart.mall.modules.affiliate.mapper.AffiliateMapper;
 import com.affismart.mall.modules.affiliate.repository.AffiliateAccountRepository;
+import com.affismart.mall.modules.affiliate.repository.CommissionRepository;
 import com.affismart.mall.modules.affiliate.repository.ReferralLinkRepository;
 import com.affismart.mall.modules.product.entity.Category;
 import com.affismart.mall.modules.product.entity.Product;
@@ -34,12 +39,15 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -54,6 +62,9 @@ class AffiliateServiceTest {
 
 	@Mock
 	private ReferralLinkRepository referralLinkRepository;
+
+	@Mock
+	private CommissionRepository commissionRepository;
 
 	@Mock
 	private UserRepository userRepository;
@@ -259,6 +270,7 @@ class AffiliateServiceTest {
 				321L,
 				200L,
 				9L,
+				"Product 9",
 				"REFA1B2C3D4",
 				0,
 				0,
@@ -282,6 +294,242 @@ class AffiliateServiceTest {
 		assertThat(persistedLink.getAffiliateAccount()).isEqualTo(approvedAccount);
 		assertThat(persistedLink.getProduct()).isEqualTo(product);
 		assertThat(persistedLink.getRefCode()).startsWith("REF");
+		assertThat(actual).isEqualTo(expectedResponse);
+	}
+
+	// =========================================================
+	// Step 6 Read APIs
+	// =========================================================
+
+	@Test
+	@DisplayName("getMyDashboard: computes clicks, conversions, rate, and earned commission")
+	void getMyDashboard_ApprovedAccount_ReturnsSummary() {
+		// Given
+		Long userId = 91L;
+		AffiliateAccount account = createAffiliateAccount(
+				301L,
+				createUser(userId, "affiliate@gmail.com"),
+				AffiliateAccountStatus.APPROVED,
+				"AFFDASH1"
+		);
+		account.setBalance(new BigDecimal("345000"));
+
+		given(affiliateAccountRepository.findWithUserByUser_Id(userId)).willReturn(Optional.of(account));
+		given(referralLinkRepository.sumTotalClicksByAffiliateAccountId(301L)).willReturn(25L);
+		given(commissionRepository.countByAffiliateAccountIdAndStatusNot(301L, CommissionStatus.REJECTED)).willReturn(5L);
+		given(commissionRepository.sumAmountByAffiliateAccountIdAndStatusIn(
+				eq(301L),
+				anySet()
+		)).willReturn(new BigDecimal("470000"));
+
+		// When
+		AffiliateDashboardResponse actual = affiliateService.getMyDashboard(userId);
+
+		// Then
+		assertThat(actual.totalClicks()).isEqualTo(25L);
+		assertThat(actual.totalConversions()).isEqualTo(5L);
+		assertThat(actual.conversionRate()).isEqualByComparingTo("20.00");
+		assertThat(actual.balance()).isEqualByComparingTo("345000");
+		assertThat(actual.totalCommissionEarned()).isEqualByComparingTo("470000");
+	}
+
+	@Test
+	@DisplayName("getMyAffiliateAccount: returns account response for approved account")
+	void getMyAffiliateAccount_ApprovedAccount_ReturnsResponse() {
+		// Given
+		Long userId = 1L;
+		AffiliateAccount account = createAffiliateAccount(10L, createUser(userId, "test@test.com"), AffiliateAccountStatus.APPROVED, "REF123");
+		AffiliateAccountResponse expected = new AffiliateAccountResponse(10L, userId, "REF123", "TikTok", "APPROVED", BigDecimal.TEN, BigDecimal.ZERO, LocalDateTime.now(), LocalDateTime.now());
+
+		given(affiliateAccountRepository.findWithUserByUser_Id(userId)).willReturn(Optional.of(account));
+		given(affiliateMapper.toAffiliateAccountResponse(account)).willReturn(expected);
+
+		// When
+		AffiliateAccountResponse actual = affiliateService.getMyAffiliateAccount(userId);
+
+		// Then
+		assertThat(actual).isEqualTo(expected);
+	}
+
+	@Test
+	@DisplayName("getMyAffiliateAccount: Exception - non-approved account throws AFFILIATE_ACCOUNT_NOT_APPROVED")
+	void getMyAffiliateAccount_NonApprovedAccount_ThrowsException() {
+		// Given
+		Long userId = 1L;
+		AffiliateAccount account = createAffiliateAccount(10L, createUser(userId, "test@test.com"), AffiliateAccountStatus.PENDING, "REF123");
+		given(affiliateAccountRepository.findWithUserByUser_Id(userId)).willReturn(Optional.of(account));
+
+		// When + Then
+		assertThatThrownBy(() -> affiliateService.getMyAffiliateAccount(userId))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.AFFILIATE_ACCOUNT_NOT_APPROVED);
+	}
+
+	@Test
+	@DisplayName("getMyReferralLinks: returns paginated links for approved account")
+	void getMyReferralLinks_ValidRequest_ReturnsPageResponse() {
+		// Given
+		Long userId = 1L;
+		AffiliateAccount account = createAffiliateAccount(10L, createUser(userId, "test@test.com"), AffiliateAccountStatus.APPROVED, "REF123");
+		ReferralLink link = createReferralLink(5L, account, null, "LINK1");
+		org.springframework.data.domain.Page<ReferralLink> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(link));
+		ReferralLinkResponse response = new ReferralLinkResponse(5L, 10L, null, null, "LINK1", 0, 0, true, LocalDateTime.now(), LocalDateTime.now());
+
+		given(affiliateAccountRepository.findWithUserByUser_Id(userId)).willReturn(Optional.of(account));
+		given(referralLinkRepository.findByAffiliateAccountId(eq(10L), eq(true), any(org.springframework.data.domain.Pageable.class))).willReturn(page);
+		given(affiliateMapper.toReferralLinkResponse(link)).willReturn(response);
+
+		// When
+		com.affismart.mall.common.response.PageResponse<ReferralLinkResponse> actual = affiliateService.getMyReferralLinks(userId, 0, 10, "createdAt", "asc", true);
+
+		// Then
+		assertThat(actual.content()).hasSize(1);
+		assertThat(actual.content().getFirst()).isEqualTo(response);
+	}
+
+	@Test
+	@DisplayName("updateMyReferralLinkStatus: updates active status and returns updated link")
+	void updateMyReferralLinkStatus_ValidRequest_UpdatesStatus() {
+		// Given
+		Long userId = 1L;
+		Long linkId = 5L;
+		AffiliateAccount account = createAffiliateAccount(10L, createUser(userId, "test@test.com"), AffiliateAccountStatus.APPROVED, "REF123");
+		ReferralLink link = createReferralLink(linkId, account, null, "LINK1");
+		link.setActive(true);
+		
+		com.affismart.mall.modules.affiliate.dto.request.UpdateReferralLinkStatusRequest request = 
+				new com.affismart.mall.modules.affiliate.dto.request.UpdateReferralLinkStatusRequest(false);
+
+		given(affiliateAccountRepository.findWithUserByUser_Id(userId)).willReturn(Optional.of(account));
+		given(referralLinkRepository.findByIdAndAffiliateAccount_Id(linkId, 10L)).willReturn(Optional.of(link));
+		given(referralLinkRepository.save(any(ReferralLink.class))).willAnswer(invocation -> invocation.getArgument(0));
+		
+		ReferralLinkResponse expected = new ReferralLinkResponse(5L, 10L, null, null, "LINK1", 0, 0, false, LocalDateTime.now(), LocalDateTime.now());
+		given(affiliateMapper.toReferralLinkResponse(any(ReferralLink.class))).willReturn(expected);
+
+		// When
+		ReferralLinkResponse actual = affiliateService.updateMyReferralLinkStatus(userId, linkId, request);
+
+		// Then
+		verify(referralLinkRepository).save(referralLinkCaptor.capture());
+		assertThat(referralLinkCaptor.getValue().isActive()).isFalse();
+		assertThat(actual).isEqualTo(expected);
+	}
+
+	@Test
+	@DisplayName("getMyCommissions: returns paginated commissions for approved account")
+	void getMyCommissions_ValidRequest_ReturnsPageResponse() {
+		// Given
+		Long userId = 1L;
+		AffiliateAccount account = createAffiliateAccount(10L, createUser(userId, "test@test.com"), AffiliateAccountStatus.APPROVED, "REF123");
+		com.affismart.mall.modules.affiliate.entity.Commission commission = new com.affismart.mall.modules.affiliate.entity.Commission();
+		org.springframework.data.domain.Page<com.affismart.mall.modules.affiliate.entity.Commission> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(commission));
+		
+		com.affismart.mall.modules.affiliate.dto.response.CommissionResponse response = 
+				new com.affismart.mall.modules.affiliate.dto.response.CommissionResponse(1L, 10L, 2L, BigDecimal.TEN, "DONE", BigDecimal.TEN, BigDecimal.TEN, "APPROVED", null, LocalDateTime.now(), LocalDateTime.now());
+
+		given(affiliateAccountRepository.findWithUserByUser_Id(userId)).willReturn(Optional.of(account));
+		given(commissionRepository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class))).willReturn(page);
+		given(affiliateMapper.toCommissionResponse(commission)).willReturn(response);
+
+		// When
+		com.affismart.mall.common.response.PageResponse<com.affismart.mall.modules.affiliate.dto.response.CommissionResponse> actual = 
+				affiliateService.getMyCommissions(userId, 0, 10, "createdAt", "desc", CommissionStatus.APPROVED, null, null);
+
+		// Then
+		assertThat(actual.content()).hasSize(1);
+		assertThat(actual.content().getFirst()).isEqualTo(response);
+	}
+
+	@Test
+	@DisplayName("getMyCommissions: Exception - invalid date range throws INVALID_INPUT")
+	void getMyCommissions_InvalidDateRange_ThrowsException() {
+		// Given
+		Long userId = 1L;
+		LocalDateTime fromDate = LocalDateTime.of(2026, 5, 1, 0, 0);
+		LocalDateTime toDate = LocalDateTime.of(2026, 4, 1, 0, 0);
+
+		// When + Then
+		assertThatThrownBy(() -> affiliateService.getMyCommissions(userId, 0, 10, "createdAt", "desc", null, fromDate, toDate))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+				
+		verifyNoInteractions(affiliateAccountRepository);
+	}
+
+	@Test
+	@DisplayName("getAffiliateAccountsForAdmin: returns paginated accounts filtered by status")
+	void getAffiliateAccountsForAdmin_WithStatus_ReturnsPageResponse() {
+		// Given
+		AffiliateAccount account = createAffiliateAccount(10L, createUser(1L, "test@test.com"), AffiliateAccountStatus.PENDING, "REF123");
+		org.springframework.data.domain.Page<AffiliateAccount> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(account));
+		AdminAffiliateAccountResponse response = new AdminAffiliateAccountResponse(10L, 1L, "Name", "test@test.com", "Bank", "REF123", "FB", "PENDING", BigDecimal.TEN, BigDecimal.ZERO, LocalDateTime.now(), LocalDateTime.now());
+
+		given(affiliateAccountRepository.findAllByStatus(eq(AffiliateAccountStatus.PENDING), any(org.springframework.data.domain.Pageable.class))).willReturn(page);
+		given(affiliateMapper.toAdminAffiliateAccountResponse(account)).willReturn(response);
+
+		// When
+		com.affismart.mall.common.response.PageResponse<AdminAffiliateAccountResponse> actual = affiliateService.getAffiliateAccountsForAdmin(0, 10, "createdAt", "desc", AffiliateAccountStatus.PENDING);
+
+		// Then
+		assertThat(actual.content()).hasSize(1);
+		assertThat(actual.content().getFirst()).isEqualTo(response);
+		verify(affiliateAccountRepository, never()).findAll(any(org.springframework.data.domain.Pageable.class));
+	}
+	
+	@Test
+	@DisplayName("getAffiliateAccountsForAdmin: returns all accounts when status is null")
+	void getAffiliateAccountsForAdmin_NullStatus_ReturnsAll() {
+		// Given
+		org.springframework.data.domain.Page<AffiliateAccount> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of());
+		given(affiliateAccountRepository.findAll(any(org.springframework.data.domain.Pageable.class))).willReturn(page);
+
+		// When
+		affiliateService.getAffiliateAccountsForAdmin(0, 10, "createdAt", "desc", null);
+
+		// Then
+		verify(affiliateAccountRepository).findAll(any(org.springframework.data.domain.Pageable.class));
+	}
+
+	@Test
+	@DisplayName("updateCommissionRate: updates rate and returns admin response")
+	void updateCommissionRate_ValidRequest_UpdatesRate() {
+		// Given
+		Long accountId = 401L;
+		User user = createUser(88L, "affiliate@gmail.com");
+		user.setFullName("Affiliate User");
+		user.setBankInfo("MB Bank");
+		AffiliateAccount account = createAffiliateAccount(accountId, user, AffiliateAccountStatus.APPROVED, "AFFRATE1");
+		AdminAffiliateAccountResponse expectedResponse = new AdminAffiliateAccountResponse(
+				accountId,
+				88L,
+				"Affiliate User",
+				"affiliate@gmail.com",
+				"MB Bank",
+				"AFFRATE1",
+				"TikTok",
+				"APPROVED",
+				new BigDecimal("12.50"),
+				BigDecimal.ZERO,
+				LocalDateTime.now(),
+				LocalDateTime.now()
+		);
+
+		given(affiliateAccountRepository.findWithUserById(accountId)).willReturn(Optional.of(account));
+		given(affiliateAccountRepository.save(any(AffiliateAccount.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(affiliateMapper.toAdminAffiliateAccountResponse(any(AffiliateAccount.class))).willReturn(expectedResponse);
+
+		// When
+		AdminAffiliateAccountResponse actual = affiliateService.updateCommissionRate(
+				accountId,
+				new UpdateAffiliateCommissionRateRequest(new BigDecimal("12.50"))
+		);
+
+		// Then
+		verify(affiliateAccountRepository).save(accountCaptor.capture());
+		assertThat(accountCaptor.getValue().getCommissionRate()).isEqualByComparingTo("12.50");
 		assertThat(actual).isEqualTo(expectedResponse);
 	}
 

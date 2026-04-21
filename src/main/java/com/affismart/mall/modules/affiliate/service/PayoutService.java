@@ -4,8 +4,10 @@ import com.affismart.mall.common.enums.AffiliateAccountStatus;
 import com.affismart.mall.common.enums.CommissionStatus;
 import com.affismart.mall.common.enums.PayoutRequestStatus;
 import com.affismart.mall.common.error.ErrorCode;
+import com.affismart.mall.common.response.PageResponse;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.affiliate.dto.request.UpdatePayoutRequestStatusRequest;
+import com.affismart.mall.modules.affiliate.dto.response.AdminPayoutRequestResponse;
 import com.affismart.mall.modules.affiliate.dto.response.PayoutRequestResponse;
 import com.affismart.mall.modules.affiliate.entity.AffiliateAccount;
 import com.affismart.mall.modules.affiliate.entity.Commission;
@@ -17,6 +19,11 @@ import com.affismart.mall.modules.affiliate.repository.PayoutRequestRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -41,6 +48,50 @@ public class PayoutService {
 		this.commissionRepository = commissionRepository;
 		this.payoutRequestRepository = payoutRequestRepository;
 		this.affiliateMapper = affiliateMapper;
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<PayoutRequestResponse> getMyPayoutRequests(
+			Long userId,
+			int page,
+			int size,
+			String sortBy,
+			String sortDir,
+			PayoutRequestStatus status
+	) {
+		AffiliateAccount affiliateAccount = getApprovedAffiliateAccountByUser(userId);
+		Pageable pageable = PageRequest.of(
+				Math.max(page, 0),
+				normalizePageSize(size),
+				Sort.by(resolveDirection(sortDir), normalizeSortProperty(sortBy))
+		);
+
+		Page<PayoutRequestResponse> responsePage = payoutRequestRepository.findByAffiliateAccountId(
+						affiliateAccount.getId(),
+						status,
+						pageable
+				)
+				.map(affiliateMapper::toPayoutRequestResponse);
+		return PageResponse.from(responsePage);
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<AdminPayoutRequestResponse> getPayoutRequestsForAdmin(
+			int page,
+			int size,
+			String sortBy,
+			String sortDir,
+			PayoutRequestStatus status
+	) {
+		Pageable pageable = PageRequest.of(
+				Math.max(page, 0),
+				normalizePageSize(size),
+				Sort.by(resolveDirection(sortDir), normalizeSortProperty(sortBy))
+		);
+
+		Page<AdminPayoutRequestResponse> responsePage = payoutRequestRepository.findAllForAdmin(status, pageable)
+				.map(affiliateMapper::toAdminPayoutRequestResponse);
+		return PageResponse.from(responsePage);
 	}
 
 	@Transactional
@@ -183,5 +234,30 @@ public class PayoutService {
 			return null;
 		}
 		return adminNote.trim();
+	}
+
+	private Sort.Direction resolveDirection(String sortDir) {
+		return "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+	}
+
+	private int normalizePageSize(int size) {
+		if (size <= 0) {
+			return 10;
+		}
+		return Math.min(size, 100);
+	}
+
+	private String normalizeSortProperty(String sortBy) {
+		if (!StringUtils.hasText(sortBy)) {
+			return "createdAt";
+		}
+		return switch (sortBy.trim().toLowerCase(Locale.ROOT)) {
+			case "id" -> "id";
+			case "amount" -> "amount";
+			case "status" -> "status";
+			case "resolvedat", "resolved_at" -> "resolvedAt";
+			case "updatedat", "updated_at" -> "updatedAt";
+			default -> "createdAt";
+		};
 	}
 }

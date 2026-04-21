@@ -7,6 +7,7 @@ import com.affismart.mall.modules.affiliate.entity.AffiliateAccount;
 import com.affismart.mall.modules.affiliate.entity.Commission;
 import com.affismart.mall.modules.affiliate.repository.AffiliateAccountRepository;
 import com.affismart.mall.modules.affiliate.repository.CommissionRepository;
+import com.affismart.mall.modules.affiliate.repository.ReferralLinkRepository;
 import com.affismart.mall.modules.order.entity.Order;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -23,13 +24,16 @@ public class CommissionService {
 
 	private final CommissionRepository commissionRepository;
 	private final AffiliateAccountRepository affiliateAccountRepository;
+	private final ReferralLinkRepository referralLinkRepository;
 
 	public CommissionService(
 			CommissionRepository commissionRepository,
-			AffiliateAccountRepository affiliateAccountRepository
+			AffiliateAccountRepository affiliateAccountRepository,
+			ReferralLinkRepository referralLinkRepository
 	) {
 		this.commissionRepository = commissionRepository;
 		this.affiliateAccountRepository = affiliateAccountRepository;
+		this.referralLinkRepository = referralLinkRepository;
 	}
 
 	@Transactional
@@ -89,12 +93,20 @@ public class CommissionService {
 		commission.setStatus(CommissionStatus.PENDING);
 
 		commissionRepository.save(commission);
+		incrementReferralLinkConversions(order);
 		log.info(
 				"Created pending commission for paid order_id={} with rate_snapshot={} and amount={}",
 				order.getId(),
 				rateSnapshot,
 				commissionAmount
 		);
+	}
+
+	private void incrementReferralLinkConversions(Order order) {
+		if (order.getReferralLinkId() == null) {
+			return;
+		}
+		referralLinkRepository.incrementTotalConversionsById(order.getReferralLinkId());
 	}
 
 	private boolean isPaidOrHigher(OrderStatus status) {
