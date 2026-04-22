@@ -3,10 +3,13 @@ package com.affismart.mall.modules.affiliate.service;
 import com.affismart.mall.common.error.ErrorCode;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.affiliate.config.AffiliateClickTrackingProperties;
+import com.affismart.mall.modules.affiliate.dto.response.BlockedIpResponse;
 import com.affismart.mall.modules.affiliate.entity.BlockedClickLog;
 import com.affismart.mall.modules.affiliate.repository.BlockedClickLogRepository;
 import com.affismart.mall.modules.affiliate.repository.ReferralLinkRepository;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -147,5 +150,70 @@ class ClickTrackingServiceTest {
 				.isEqualTo(ErrorCode.INVALID_INPUT);
 
 		verifyNoInteractions(stringRedisTemplate, referralLinkRepository, blockedClickLogRepository);
+	}
+
+	@Test
+	@DisplayName("getBlockedIps: returns active blocked IPs from repository query")
+	void getBlockedIps_ReturnsActiveBlockedIpsFromRepository() {
+		// Given
+		LocalDateTime now = LocalDateTime.now();
+		BlockedClickLog latestIpOne = createBlockedClickLog("198.51.100.10", "RATE_LIMIT_EXCEEDED", now.minusMinutes(1), now.plusMinutes(4));
+		BlockedClickLog activeIpTwo = createBlockedClickLog("203.0.113.30", "RATE_LIMIT_EXCEEDED", now.minusMinutes(2), now.plusMinutes(3));
+
+		given(blockedClickLogRepository.findActiveBlockedIps()).willReturn(List.of(
+				latestIpOne,
+				activeIpTwo
+		));
+
+		// When
+		List<BlockedIpResponse> result = clickTrackingService.getBlockedIps();
+
+		// Then
+		assertThat(result).hasSize(2);
+		assertThat(result.get(0).ipAddress()).isEqualTo("198.51.100.10");
+		assertThat(result.get(1).ipAddress()).isEqualTo("203.0.113.30");
+	}
+
+	@Test
+	@DisplayName("unblockIp: removes blocked IP from DB and clears Redis keys")
+	void unblockIp_RemovesBlockedIpFromDbAndRedis() {
+		// Given
+		String ip = "198.51.100.25";
+		given(blockedClickLogRepository.deleteByIpAddress(ip)).willReturn(2L);
+
+		// When
+		clickTrackingService.unblockIp(ip);
+
+		// Then
+		verify(blockedClickLogRepository).deleteByIpAddress(ip);
+		verify(stringRedisTemplate).delete(ClickTrackingRedisKeys.blockedIpKey(ip));
+		verify(stringRedisTemplate).delete(ClickTrackingRedisKeys.rateLimitKey(ip));
+	}
+
+	@Test
+	@DisplayName("unblockIp: missing blocked IP throws RESOURCE_NOT_FOUND")
+	void unblockIp_MissingBlockedIp_ThrowsResourceNotFound() {
+		// Given
+		given(blockedClickLogRepository.deleteByIpAddress("198.51.100.99")).willReturn(0L);
+
+		// When + Then
+		assertThatThrownBy(() -> clickTrackingService.unblockIp("198.51.100.99"))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+	}
+
+	private BlockedClickLog createBlockedClickLog(
+			String ipAddress,
+			String reason,
+			LocalDateTime createdAt,
+			LocalDateTime expiresAt
+	) {
+		BlockedClickLog log = new BlockedClickLog();
+		log.setIpAddress(ipAddress);
+		log.setReason(reason);
+		log.setCreatedAt(createdAt);
+		log.setExpiresAt(expiresAt);
+		return log;
 	}
 }

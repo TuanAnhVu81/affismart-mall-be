@@ -4,6 +4,7 @@ import com.affismart.mall.common.response.ApiResponse;
 import com.affismart.mall.modules.auth.security.UserPrincipal;
 import com.affismart.mall.modules.payment.dto.request.CreatePaymentSessionRequest;
 import com.affismart.mall.modules.payment.dto.response.PaymentSessionResponse;
+import com.affismart.mall.modules.payment.service.PaymentRedirectService;
 import com.affismart.mall.modules.payment.service.PaymentService;
 import com.affismart.mall.modules.payment.service.PaymentWebhookService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,10 +14,12 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Payment", description = "Endpoints for checkout payment flow")
@@ -26,10 +29,16 @@ public class PaymentController {
 
 	private final PaymentService paymentService;
 	private final PaymentWebhookService paymentWebhookService;
+	private final PaymentRedirectService paymentRedirectService;
 
-	public PaymentController(PaymentService paymentService, PaymentWebhookService paymentWebhookService) {
+	public PaymentController(
+			PaymentService paymentService,
+			PaymentWebhookService paymentWebhookService,
+			PaymentRedirectService paymentRedirectService
+	) {
 		this.paymentService = paymentService;
 		this.paymentWebhookService = paymentWebhookService;
+		this.paymentRedirectService = paymentRedirectService;
 	}
 
 	@Operation(summary = "Create Stripe checkout session for a pending order (Customer only)")
@@ -54,5 +63,21 @@ public class PaymentController {
 	) {
 		paymentWebhookService.handleVerifiedEvent(paymentWebhookService.verifyWebhook(payload, stripeSignature));
 		return ResponseEntity.ok("ok");
+	}
+
+	@Operation(summary = "Redirect user to frontend success page after Stripe checkout (Public)")
+	@SecurityRequirements
+	@GetMapping("/success")
+	public ResponseEntity<Void> handlePaymentSuccessRedirect(
+			@RequestParam(name = "session_id", required = false) String sessionId
+	) {
+		return paymentRedirectService.redirectToFrontendSuccess(sessionId);
+	}
+
+	@Operation(summary = "Redirect user to frontend cancel page after Stripe checkout (Public)")
+	@SecurityRequirements
+	@GetMapping("/cancel")
+	public ResponseEntity<Void> handlePaymentCancelRedirect() {
+		return paymentRedirectService.redirectToFrontendCancel();
 	}
 }

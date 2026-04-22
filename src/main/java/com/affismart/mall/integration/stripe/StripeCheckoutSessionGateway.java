@@ -6,6 +6,7 @@ import com.affismart.mall.modules.order.entity.Order;
 import com.affismart.mall.modules.order.entity.OrderItem;
 import com.affismart.mall.modules.payment.model.CheckoutSessionResult;
 import com.affismart.mall.modules.payment.service.CheckoutSessionGateway;
+import com.affismart.mall.modules.payment.service.PaymentRedirectService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
@@ -32,11 +33,14 @@ public class StripeCheckoutSessionGateway implements CheckoutSessionGateway {
 	private static final Logger log = LoggerFactory.getLogger(StripeCheckoutSessionGateway.class);
 
 	private final StripeProperties stripeProperties;
+	private final PaymentRedirectService paymentRedirectService;
 	private final String currency;
 
-	public StripeCheckoutSessionGateway(StripeProperties stripeProperties) {
+	public StripeCheckoutSessionGateway(StripeProperties stripeProperties, PaymentRedirectService paymentRedirectService) {
 		this.stripeProperties = stripeProperties;
+		this.paymentRedirectService = paymentRedirectService;
 		validateRequiredProperty(stripeProperties.getSecretKey(), "app.payment.stripe.secret-key");
+		validateRequiredProperty(stripeProperties.getRedirectBaseUrl(), "app.payment.stripe.redirect-base-url");
 		validateRequiredProperty(stripeProperties.getSuccessUrl(), "app.payment.stripe.success-url");
 		validateRequiredProperty(stripeProperties.getCancelUrl(), "app.payment.stripe.cancel-url");
 		this.currency = normalizeCurrencyCode(stripeProperties.getCurrency());
@@ -86,8 +90,8 @@ public class StripeCheckoutSessionGateway implements CheckoutSessionGateway {
 	public CheckoutSessionResult createCheckoutSession(Order order, List<OrderItem> orderItems) {
 		SessionCreateParams.Builder sessionBuilder = SessionCreateParams.builder()
 				.setMode(SessionCreateParams.Mode.PAYMENT)
-				.setSuccessUrl(stripeProperties.getSuccessUrl())
-				.setCancelUrl(stripeProperties.getCancelUrl())
+				.setSuccessUrl(paymentRedirectService.getStripeSuccessReturnUrl())
+				.setCancelUrl(paymentRedirectService.getStripeCancelReturnUrl())
 				.putMetadata("orderId", String.valueOf(order.getId()))
 				.putMetadata("userId", String.valueOf(order.getUser().getId()));
 

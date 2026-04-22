@@ -337,7 +337,7 @@ class ProductServiceTest {
 
 		// When
 		com.affismart.mall.common.response.PageResponse<ProductResponse> result = productService.getPublicProducts(
-				0, 20, "price_asc", "tai", 1L, new BigDecimal("100"), new BigDecimal("500")
+				0, 20, "price_asc", 1L, new BigDecimal("100"), new BigDecimal("500")
 		);
 
 		// Then
@@ -358,7 +358,7 @@ class ProductServiceTest {
 	void getPublicProducts_InvalidPriceRange_ThrowsInvalidInput() {
 		// When + Then
 		assertThatThrownBy(() -> productService.getPublicProducts(
-				0, 10, "newest", null, null, new BigDecimal("500"), new BigDecimal("100")
+				0, 10, "newest", null, new BigDecimal("500"), new BigDecimal("100")
 		))
 				.isInstanceOf(AppException.class)
 				.extracting("errorCode")
@@ -366,18 +366,90 @@ class ProductServiceTest {
 	}
 
 	@Test
-	@DisplayName("getActiveProductById: Happy Path - returns mapped response when product is active")
-	void getActiveProductById_Found_ReturnsMappedResponse() {
+	@DisplayName("searchPublicProducts: Happy Path - applies keyword search and returns paginated mapped result")
+	void searchPublicProducts_WithKeyword_ReturnsPageResponse() {
+		// Given
+		Category category = createMockCategory(1L, "Electronics");
+		Product product = buildSavedProduct(
+				12L, category, "Tai nghe Pro", "SKU-2", "tai-nghe-pro",
+				new BigDecimal("350"), 7, true
+		);
+		Page<Product> productPage = new PageImpl<>(List.of(product));
+
+		given(productRepository.findAll(ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Product>>any(), any(Pageable.class)))
+				.willReturn(productPage);
+
+		// When
+		com.affismart.mall.common.response.PageResponse<ProductResponse> result = productService.searchPublicProducts(
+				0, 10, "newest", "tai nghe", 1L, null, null
+		);
+
+		// Then
+		verify(productRepository).findAll(
+				ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Product>>any(),
+				pageableCaptor.capture()
+		);
+		assertThat(pageableCaptor.getValue().getSort().getOrderFor("createdAt").getDirection())
+				.isEqualTo(Sort.Direction.DESC);
+		assertThat(result.content()).hasSize(1);
+		assertThat(result.content().getFirst().slug()).isEqualTo("tai-nghe-pro");
+	}
+
+	@Test
+	@DisplayName("getAdminProducts: Happy Path - returns paginated products including inactive ones by default")
+	void getAdminProducts_NoActiveFilter_ReturnsAllMatchingProducts() {
+		// Given
+		Category category = createMockCategory(1L, "Electronics");
+		Product inactiveProduct = buildSavedProduct(
+				13L, category, "Archived Product", "SKU-3", "archived-product",
+				new BigDecimal("150"), 0, false
+		);
+		Page<Product> productPage = new PageImpl<>(List.of(inactiveProduct));
+
+		given(productRepository.findAll(ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Product>>any(), any(Pageable.class)))
+				.willReturn(productPage);
+
+		// When
+		com.affismart.mall.common.response.PageResponse<ProductResponse> result = productService.getAdminProducts(
+				0, 10, "price", "asc", null, null, null, null, null
+		);
+
+		// Then
+		verify(productRepository).findAll(
+				ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<Product>>any(),
+				pageableCaptor.capture()
+		);
+		assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(10);
+		assertThat(pageableCaptor.getValue().getSort().getOrderFor("price").getDirection()).isEqualTo(Sort.Direction.ASC);
+		assertThat(result.content()).hasSize(1);
+		assertThat(result.content().getFirst().active()).isFalse();
+	}
+
+	@Test
+	@DisplayName("getAdminProducts: Exception - invalid price range throws INVALID_INPUT")
+	void getAdminProducts_InvalidPriceRange_ThrowsInvalidInput() {
+		// When + Then
+		assertThatThrownBy(() -> productService.getAdminProducts(
+				0, 10, "created_at", "desc", null, null, new BigDecimal("500"), new BigDecimal("100"), null
+		))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.INVALID_INPUT);
+	}
+
+	@Test
+	@DisplayName("getActiveProductBySlug: Happy Path - returns mapped response when product is active")
+	void getActiveProductBySlug_Found_ReturnsMappedResponse() {
 		// Given
 		Category category = createMockCategory(1L, "Electronics");
 		Product product = buildSavedProduct(
 				10L, category, "Tai nghe", "SKU-1", "tai-nghe",
 				new BigDecimal("200"), 5, true
 		);
-		given(productRepository.findByIdAndActiveTrue(10L)).willReturn(Optional.of(product));
+		given(productRepository.findBySlugAndActiveTrue("tai-nghe")).willReturn(Optional.of(product));
 
 		// When
-		ProductResponse result = productService.getActiveProductById(10L);
+		ProductResponse result = productService.getActiveProductBySlug("tai-nghe");
 
 		// Then
 		assertThat(result.id()).isEqualTo(10L);
@@ -386,13 +458,46 @@ class ProductServiceTest {
 	}
 
 	@Test
-	@DisplayName("getActiveProductById: Exception - inactive or missing product throws PRODUCT_NOT_FOUND")
-	void getActiveProductById_NotFound_ThrowsProductNotFound() {
+	@DisplayName("getActiveProductBySlug: Exception - inactive or missing product throws PRODUCT_NOT_FOUND")
+	void getActiveProductBySlug_NotFound_ThrowsProductNotFound() {
 		// Given
-		given(productRepository.findByIdAndActiveTrue(99L)).willReturn(Optional.empty());
+		given(productRepository.findBySlugAndActiveTrue("missing-product")).willReturn(Optional.empty());
 
 		// When + Then
-		assertThatThrownBy(() -> productService.getActiveProductById(99L))
+		assertThatThrownBy(() -> productService.getActiveProductBySlug("missing-product"))
+				.isInstanceOf(AppException.class)
+				.extracting("errorCode")
+				.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("getAdminProductById: Happy Path - returns mapped response even when product is inactive")
+	void getAdminProductById_Found_ReturnsMappedResponse() {
+		// Given
+		Category category = createMockCategory(1L, "Electronics");
+		Product product = buildSavedProduct(
+				14L, category, "Archived Product", "SKU-4", "archived-product",
+				new BigDecimal("400"), 0, false
+		);
+		given(productRepository.findById(14L)).willReturn(Optional.of(product));
+
+		// When
+		ProductResponse result = productService.getAdminProductById(14L);
+
+		// Then
+		assertThat(result.id()).isEqualTo(14L);
+		assertThat(result.slug()).isEqualTo("archived-product");
+		assertThat(result.active()).isFalse();
+	}
+
+	@Test
+	@DisplayName("getAdminProductById: Exception - missing product throws PRODUCT_NOT_FOUND")
+	void getAdminProductById_NotFound_ThrowsProductNotFound() {
+		// Given
+		given(productRepository.findById(404L)).willReturn(Optional.empty());
+
+		// When + Then
+		assertThatThrownBy(() -> productService.getAdminProductById(404L))
 				.isInstanceOf(AppException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);

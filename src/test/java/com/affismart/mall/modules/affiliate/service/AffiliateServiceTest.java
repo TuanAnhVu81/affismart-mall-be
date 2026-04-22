@@ -38,6 +38,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -430,7 +431,7 @@ class AffiliateServiceTest {
 				new com.affismart.mall.modules.affiliate.dto.response.CommissionResponse(1L, 10L, 2L, BigDecimal.TEN, "DONE", BigDecimal.TEN, BigDecimal.TEN, "APPROVED", null, LocalDateTime.now(), LocalDateTime.now());
 
 		given(affiliateAccountRepository.findWithUserByUser_Id(userId)).willReturn(Optional.of(account));
-		given(commissionRepository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class))).willReturn(page);
+		given(commissionRepository.findAll(ArgumentMatchers.<Specification<com.affismart.mall.modules.affiliate.entity.Commission>>any(), any(org.springframework.data.domain.Pageable.class))).willReturn(page);
 		given(affiliateMapper.toCommissionResponse(commission)).willReturn(response);
 
 		// When

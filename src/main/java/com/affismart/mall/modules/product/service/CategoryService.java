@@ -63,8 +63,18 @@ public class CategoryService {
 	}
 
 	@Transactional(readOnly = true)
-	public CategoryResponse getActiveCategoryById(Long categoryId) {
-		Category category = categoryRepository.findByIdAndActiveTrue(categoryId)
+	public List<CategoryResponse> getCategoriesForAdmin(Boolean active) {
+		List<Category> categories = active == null
+				? categoryRepository.findAllByOrderByNameAsc()
+				: categoryRepository.findAllByActiveOrderByNameAsc(active);
+		return categories.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public CategoryResponse getActiveCategoryBySlug(String slug) {
+		Category category = categoryRepository.findBySlugAndActiveTrue(slug)
 				.orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 		return toResponse(category);
 	}

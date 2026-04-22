@@ -221,14 +221,48 @@ class CategoryServiceTest {
 	}
 
 	@Test
-	@DisplayName("getActiveCategoryById: Happy Path - returns category response when found and is active")
-	void getActiveCategoryById_Found_ReturnsMappedResponse() {
+	@DisplayName("getCategoriesForAdmin: Happy Path - returns all categories when active filter is omitted")
+	void getCategoriesForAdmin_NoActiveFilter_ReturnsAllCategories() {
 		// Given
-		Category found = createMockCategory(5L, "Electronics", "electronics", true);
-		given(categoryRepository.findByIdAndActiveTrue(5L)).willReturn(Optional.of(found));
+		given(categoryRepository.findAllByOrderByNameAsc()).willReturn(List.of(
+				createMockCategory(1L, "Electronics", "electronics", true),
+				createMockCategory(2L, "Archived", "archived", false)
+		));
 
 		// When
-		CategoryResponse result = categoryService.getActiveCategoryById(5L);
+		List<CategoryResponse> result = categoryService.getCategoriesForAdmin(null);
+
+		// Then
+		assertThat(result).hasSize(2);
+		assertThat(result.get(0).active()).isTrue();
+		assertThat(result.get(1).active()).isFalse();
+	}
+
+	@Test
+	@DisplayName("getCategoriesForAdmin: Happy Path - filters by active status when provided")
+	void getCategoriesForAdmin_WithActiveFilter_ReturnsFilteredCategories() {
+		// Given
+		given(categoryRepository.findAllByActiveOrderByNameAsc(false)).willReturn(List.of(
+				createMockCategory(2L, "Archived", "archived", false)
+		));
+
+		// When
+		List<CategoryResponse> result = categoryService.getCategoriesForAdmin(false);
+
+		// Then
+		assertThat(result).hasSize(1);
+		assertThat(result.getFirst().active()).isFalse();
+	}
+
+	@Test
+	@DisplayName("getActiveCategoryBySlug: Happy Path - returns category response when found and is active")
+	void getActiveCategoryBySlug_Found_ReturnsMappedResponse() {
+		// Given
+		Category found = createMockCategory(5L, "Electronics", "electronics", true);
+		given(categoryRepository.findBySlugAndActiveTrue("electronics")).willReturn(Optional.of(found));
+
+		// When
+		CategoryResponse result = categoryService.getActiveCategoryBySlug("electronics");
 
 		// Then
 		assertThat(result.id()).isEqualTo(5L);
@@ -238,13 +272,13 @@ class CategoryServiceTest {
 	}
 
 	@Test
-	@DisplayName("getActiveCategoryById: Exception - inactive or missing category throws CATEGORY_NOT_FOUND")
-	void getActiveCategoryById_NotFound_ThrowsCategoryNotFound() {
+	@DisplayName("getActiveCategoryBySlug: Exception - inactive or missing category throws CATEGORY_NOT_FOUND")
+	void getActiveCategoryBySlug_NotFound_ThrowsCategoryNotFound() {
 		// Given
-		given(categoryRepository.findByIdAndActiveTrue(99L)).willReturn(Optional.empty());
+		given(categoryRepository.findBySlugAndActiveTrue("missing-category")).willReturn(Optional.empty());
 
 		// When + Then
-		assertThatThrownBy(() -> categoryService.getActiveCategoryById(99L))
+		assertThatThrownBy(() -> categoryService.getActiveCategoryBySlug("missing-category"))
 				.isInstanceOf(AppException.class)
 				.extracting("errorCode")
 				.isEqualTo(ErrorCode.CATEGORY_NOT_FOUND);

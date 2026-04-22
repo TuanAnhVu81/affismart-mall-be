@@ -25,8 +25,34 @@ public final class ProductSpecifications {
 		return specification;
 	}
 
+	public static Specification<Product> forAdminCatalog(
+			String keyword,
+			Long categoryId,
+			BigDecimal minPrice,
+			BigDecimal maxPrice,
+			Boolean active
+	) {
+		// Start with a no-op spec that always matches, then layer optional filters
+		Specification<Product> specification = (root, query, cb) -> cb.conjunction();
+		if (active != null) {
+			specification = specification.and(hasActive(active));
+		}
+		specification = specification.and(keywordContains(keyword));
+		specification = specification.and(hasCategoryId(categoryId));
+		specification = specification.and(priceFrom(minPrice));
+		specification = specification.and(priceTo(maxPrice));
+		return specification;
+	}
+
 	private static Specification<Product> activeOnly() {
 		return (root, query, criteriaBuilder) -> criteriaBuilder.isTrue(root.get("active"));
+	}
+
+	private static Specification<Product> hasActive(Boolean active) {
+		if (active == null) {
+			return null;
+		}
+		return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("active"), active);
 	}
 
 	private static Specification<Product> keywordContains(String keyword) {

@@ -17,6 +17,7 @@ import com.affismart.mall.modules.affiliate.dto.response.AdminAffiliateAccountRe
 import com.affismart.mall.modules.affiliate.dto.response.AdminPayoutRequestResponse;
 import com.affismart.mall.modules.affiliate.dto.response.AffiliateAccountResponse;
 import com.affismart.mall.modules.affiliate.dto.response.AffiliateDashboardResponse;
+import com.affismart.mall.modules.affiliate.dto.response.BlockedIpResponse;
 import com.affismart.mall.modules.affiliate.dto.response.CommissionResponse;
 import com.affismart.mall.modules.affiliate.dto.response.PayoutRequestResponse;
 import com.affismart.mall.modules.affiliate.dto.response.ReferralLinkResponse;
@@ -29,9 +30,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -278,5 +281,23 @@ public class AffiliateController {
 				"Payout request status updated successfully",
 				payoutService.updatePayoutStatus(id, request)
 		);
+	}
+
+	@Operation(summary = "Get blocked IP list for affiliate click tracking (Admin only)")
+	@PreAuthorize("hasRole('ADMIN')")
+	@GetMapping("/blocked-ips")
+	public ApiResponse<List<BlockedIpResponse>> getBlockedIps() {
+		return ApiResponse.success(
+				"Blocked IPs retrieved successfully",
+				clickTrackingService.getBlockedIps()
+		);
+	}
+
+	@Operation(summary = "Remove one blocked IP from affiliate click tracking (Admin only)")
+	@PreAuthorize("hasRole('ADMIN')")
+	@DeleteMapping("/blocked-ips/{ip}")
+	public ApiResponse<Void> unblockIp(@PathVariable String ip) {
+		clickTrackingService.unblockIp(ip);
+		return ApiResponse.success("Blocked IP removed successfully");
 	}
 }

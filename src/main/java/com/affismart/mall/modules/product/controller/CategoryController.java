@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Categories", description = "Endpoints for category management")
@@ -35,10 +36,19 @@ public class CategoryController {
 		return ApiResponse.success("Categories retrieved successfully", categoryService.getActiveCategories());
 	}
 
-	@Operation(summary = "Get active category by ID (Public)")
-	@GetMapping("/{id}")
-	public ApiResponse<CategoryResponse> getCategoryById(@PathVariable Long id) {
-		return ApiResponse.success("Category retrieved successfully", categoryService.getActiveCategoryById(id));
+	@Operation(summary = "Get all categories for admin including inactive ones (Admin only)")
+	@PreAuthorize("hasRole('ADMIN')")
+	@GetMapping("/admin")
+	public ApiResponse<List<CategoryResponse>> getAdminCategories(
+			@RequestParam(required = false) Boolean active
+	) {
+		return ApiResponse.success("Admin categories retrieved successfully", categoryService.getCategoriesForAdmin(active));
+	}
+
+	@Operation(summary = "Get active category by slug (Public)")
+	@GetMapping("/{slug}")
+	public ApiResponse<CategoryResponse> getCategoryBySlug(@PathVariable String slug) {
+		return ApiResponse.success("Category retrieved successfully", categoryService.getActiveCategoryBySlug(slug));
 	}
 
 	@Operation(summary = "Create category (Admin only)")

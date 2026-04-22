@@ -67,6 +67,7 @@ app:
       enabled: ${STRIPE_ENABLED:false}
       secret-key: ${STRIPE_SECRET_KEY:}
       webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      redirect-base-url: ${BACKEND_PUBLIC_URL:http://localhost:8080}
       success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}}
       cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/payment/cancel}
       currency: ${STRIPE_CURRENCY:vnd}

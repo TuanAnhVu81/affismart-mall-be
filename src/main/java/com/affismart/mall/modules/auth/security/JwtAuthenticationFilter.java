@@ -54,6 +54,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				|| matches(method, requestUri, "POST", "/api/v1/auth/login")
 				|| matches(method, requestUri, "POST", "/api/v1/auth/refresh")
 				|| matches(method, requestUri, "POST", "/api/v1/payment/webhook")
+				|| matches(method, requestUri, "GET", "/api/v1/payment/success")
+				|| matches(method, requestUri, "GET", "/api/v1/payment/cancel")
 				|| PATH_MATCHER.match("/swagger-ui/**", requestUri)
 				|| "/swagger-ui.html".equals(requestUri)
 				|| PATH_MATCHER.match("/v3/api-docs/**", requestUri)

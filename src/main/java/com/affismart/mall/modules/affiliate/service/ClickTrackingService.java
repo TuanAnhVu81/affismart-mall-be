@@ -3,11 +3,13 @@ package com.affismart.mall.modules.affiliate.service;
 import com.affismart.mall.common.error.ErrorCode;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.affiliate.config.AffiliateClickTrackingProperties;
+import com.affismart.mall.modules.affiliate.dto.response.BlockedIpResponse;
 import com.affismart.mall.modules.affiliate.entity.BlockedClickLog;
 import com.affismart.mall.modules.affiliate.repository.BlockedClickLogRepository;
 import com.affismart.mall.modules.affiliate.repository.ReferralLinkRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -57,6 +59,31 @@ public class ClickTrackingService {
 		if (updatedRows == 0) {
 			throw new AppException(ErrorCode.INVALID_INPUT, "Referral code is invalid or inactive");
 		}
+	}
+
+	@Transactional(readOnly = true)
+	public List<BlockedIpResponse> getBlockedIps() {
+		return blockedClickLogRepository.findActiveBlockedIps()
+				.stream()
+				.map(log -> new BlockedIpResponse(
+						log.getIpAddress(),
+						log.getReason(),
+						log.getCreatedAt(),
+						log.getExpiresAt()
+				))
+				.toList();
+	}
+
+	@Transactional
+	public void unblockIp(String ipAddress) {
+		String normalizedIp = normalizeIp(ipAddress);
+		long deletedRows = blockedClickLogRepository.deleteByIpAddress(normalizedIp);
+		if (deletedRows == 0) {
+			throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Blocked IP was not found");
+		}
+
+		stringRedisTemplate.delete(ClickTrackingRedisKeys.blockedIpKey(normalizedIp));
+		stringRedisTemplate.delete(ClickTrackingRedisKeys.rateLimitKey(normalizedIp));
 	}
 
 	private long increaseRateCounter(String ipAddress) {

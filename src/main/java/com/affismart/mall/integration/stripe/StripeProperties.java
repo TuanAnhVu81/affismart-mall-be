@@ -15,6 +15,8 @@ public class StripeProperties {
 
 	private String webhookSecret;
 
+	private String redirectBaseUrl;
+
 	private String successUrl;
 
 	private String cancelUrl;

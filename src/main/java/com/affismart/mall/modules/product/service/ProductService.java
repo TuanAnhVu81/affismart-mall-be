@@ -77,6 +77,30 @@ public class ProductService {
 			int page,
 			int size,
 			String sortBy,
+			Long categoryId,
+			BigDecimal minPrice,
+			BigDecimal maxPrice
+	) {
+		return getPublicProducts(page, size, sortBy, null, categoryId, minPrice, maxPrice);
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<ProductResponse> searchPublicProducts(
+			int page,
+			int size,
+			String sortBy,
+			String keyword,
+			Long categoryId,
+			BigDecimal minPrice,
+			BigDecimal maxPrice
+	) {
+		return getPublicProducts(page, size, sortBy, keyword, categoryId, minPrice, maxPrice);
+	}
+
+	private PageResponse<ProductResponse> getPublicProducts(
+			int page,
+			int size,
+			String sortBy,
 			String keyword,
 			Long categoryId,
 			BigDecimal minPrice,
@@ -99,10 +123,43 @@ public class ProductService {
 	}
 
 	@Transactional(readOnly = true)
-	public ProductResponse getActiveProductById(Long productId) {
-		Product product = productRepository.findByIdAndActiveTrue(productId)
+	public PageResponse<ProductResponse> getAdminProducts(
+			int page,
+			int size,
+			String sortBy,
+			String sortDir,
+			String keyword,
+			Long categoryId,
+			BigDecimal minPrice,
+			BigDecimal maxPrice,
+			Boolean active
+	) {
+		validatePriceRange(minPrice, maxPrice);
+
+		Pageable pageable = PageRequest.of(
+				Math.max(page, 0),
+				normalizePageSize(size),
+				resolveAdminSort(sortBy, sortDir)
+		);
+
+		Page<ProductResponse> result = productRepository.findAll(
+						ProductSpecifications.forAdminCatalog(keyword, categoryId, minPrice, maxPrice, active),
+						pageable
+				)
+				.map(productMapper::toProductResponse);
+		return PageResponse.from(result);
+	}
+
+	@Transactional(readOnly = true)
+	public ProductResponse getActiveProductBySlug(String slug) {
+		Product product = productRepository.findBySlugAndActiveTrue(slug)
 				.orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
 		return productMapper.toProductResponse(product);
+	}
+
+	@Transactional(readOnly = true)
+	public ProductResponse getAdminProductById(Long productId) {
+		return productMapper.toProductResponse(getRequiredProduct(productId));
 	}
 
 	@Transactional(readOnly = true)
@@ -181,6 +238,38 @@ public class ProductService {
 			case "newest" -> Sort.by(Sort.Direction.DESC, "createdAt");
 			default -> Sort.by(Sort.Direction.DESC, "createdAt");
 		};
+	}
+
+	private Sort resolveAdminSort(String sortBy, String sortDir) {
+		String normalizedSortBy = StringUtils.hasText(sortBy)
+				? sortBy.trim().toLowerCase(Locale.ROOT)
+				: "created_at";
+
+		String property = switch (normalizedSortBy) {
+			case "id" -> "id";
+			case "name" -> "name";
+			case "price" -> "price";
+			case "stock_quantity" -> "stockQuantity";
+			case "updated_at" -> "updatedAt";
+			case "created_at", "newest" -> "createdAt";
+			case "price_asc", "price_desc" -> "price";
+			default -> "createdAt";
+		};
+
+		Sort.Direction direction = switch (normalizedSortBy) {
+			case "price_asc" -> Sort.Direction.ASC;
+			case "price_desc", "newest" -> Sort.Direction.DESC;
+			default -> resolveSortDirection(sortDir);
+		};
+
+		return Sort.by(direction, property);
+	}
+
+	private Sort.Direction resolveSortDirection(String sortDir) {
+		if (!StringUtils.hasText(sortDir)) {
+			return Sort.Direction.DESC;
+		}
+		return "asc".equalsIgnoreCase(sortDir.trim()) ? Sort.Direction.ASC : Sort.Direction.DESC;
 	}
 
 	private int normalizePageSize(int size) {

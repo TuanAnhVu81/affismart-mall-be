@@ -39,20 +39,56 @@ public class ProductController {
 		this.productService = productService;
 	}
 
-	@Operation(summary = "Search and filter active products (Public)")
+	@Operation(summary = "Filter active products (Public)")
 	@GetMapping
 	public ApiResponse<PageResponse<ProductResponse>> getProducts(
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "10") int size,
 			@RequestParam(defaultValue = "newest") String sortBy,
-			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false) Long categoryId,
 			@RequestParam(required = false) BigDecimal minPrice,
 			@RequestParam(required = false) BigDecimal maxPrice
 	) {
 		return ApiResponse.success(
 				"Products retrieved successfully",
-				productService.getPublicProducts(page, size, sortBy, keyword, categoryId, minPrice, maxPrice)
+				productService.getPublicProducts(page, size, sortBy, categoryId, minPrice, maxPrice)
+		);
+	}
+
+	@Operation(summary = "Filter products for admin including inactive ones (Admin only)")
+	@PreAuthorize("hasRole('ADMIN')")
+	@GetMapping("/admin")
+	public ApiResponse<PageResponse<ProductResponse>> getAdminProducts(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(name = "sort_by", defaultValue = "created_at") String sortBy,
+			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
+			@RequestParam(required = false) String keyword,
+			@RequestParam(name = "category_id", required = false) Long categoryId,
+			@RequestParam(name = "min_price", required = false) BigDecimal minPrice,
+			@RequestParam(name = "max_price", required = false) BigDecimal maxPrice,
+			@RequestParam(required = false) Boolean active
+	) {
+		return ApiResponse.success(
+				"Admin products retrieved successfully",
+				productService.getAdminProducts(page, size, sortBy, sortDir, keyword, categoryId, minPrice, maxPrice, active)
+		);
+	}
+
+	@Operation(summary = "Search active products by keyword (Public)")
+	@GetMapping("/search")
+	public ApiResponse<PageResponse<ProductResponse>> searchProducts(
+			@RequestParam String keyword,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "newest") String sortBy,
+			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false) BigDecimal minPrice,
+			@RequestParam(required = false) BigDecimal maxPrice
+	) {
+		return ApiResponse.success(
+				"Products retrieved successfully",
+				productService.searchPublicProducts(page, size, sortBy, keyword, categoryId, minPrice, maxPrice)
 		);
 	}
 
@@ -63,10 +99,10 @@ public class ProductController {
 		return ApiResponse.success("Low-stock products retrieved successfully", productService.getLowStockProducts());
 	}
 
-	@Operation(summary = "Get active product by ID (Public)")
-	@GetMapping("/{id}")
-	public ApiResponse<ProductResponse> getProductById(@PathVariable Long id) {
-		return ApiResponse.success("Product retrieved successfully", productService.getActiveProductById(id));
+	@Operation(summary = "Get active product by slug (Public)")
+	@GetMapping("/{slug}")
+	public ApiResponse<ProductResponse> getProductBySlug(@PathVariable String slug) {
+		return ApiResponse.success("Product retrieved successfully", productService.getActiveProductBySlug(slug));
 	}
 
 	@Operation(summary = "Create product (Admin only)")
