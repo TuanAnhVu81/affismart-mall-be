@@ -36,3 +36,8 @@ build/
 project/
 agent/
 .env
+
+### AI Service ###
+affismart-ai-service/.venv/
+affismart-ai-service/*.log
+affismart-ai-service/**/__pycache__/

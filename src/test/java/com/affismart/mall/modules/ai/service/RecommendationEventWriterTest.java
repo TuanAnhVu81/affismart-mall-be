@@ -45,6 +45,20 @@ class RecommendationEventWriterTest {
 		assertThat(savedEvent.getAction()).isEqualTo(RecommendationEventAction.PURCHASE);
 	}
 
+	@Test
+	@DisplayName("writeAsync: Edge Case - returns a completed future with null result (fire-and-forget contract)")
+	void writeAsync_ValidEvent_ReturnsCompletedFutureWithNull() {
+		// Given
+		RecommendationEvent recommendationEvent = createRecommendationEvent(5L, RecommendationEventAction.VIEW);
+
+		// When
+		var future = recommendationEventWriter.writeAsync(recommendationEvent);
+
+		// Then — caller must always receive a completed, non-null future regardless of the event content
+		assertThat(future).isNotNull().isCompleted();
+		assertThat(future.join()).isNull();
+	}
+
 	private RecommendationEvent createRecommendationEvent(Long productId, RecommendationEventAction action) {
 		Product product = new Product();
 		product.setId(productId);

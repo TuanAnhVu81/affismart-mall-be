@@ -1,11 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.recommendations import get_recommendation_service, router as recommendation_router
+from app.schemas.recommendations import HealthResponse
+from app.services.config import get_settings
 
+settings = get_settings()
 app = FastAPI(
-    title="AffiSmart AI Service",
+    title=settings.app_name,
     version="0.1.0",
-    description="Minimal FastAPI scaffold for AI recommendation and chatbot features.",
+    description="AffiSmart AI Service for internal recommendations and future chatbot flows.",
 )
 
 app.add_middleware(
@@ -16,10 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(recommendation_router)
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {
-        "status": "ok",
-        "service": "affismart-ai-service",
-    }
+
+@app.get("/health", response_model=HealthResponse, tags=["health"])
+def health() -> HealthResponse:
+    service = get_recommendation_service()
+    return HealthResponse(**service.get_health())
