@@ -61,8 +61,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				|| PATH_MATCHER.match("/v3/api-docs/**", requestUri)
 				|| "/error".equals(requestUri)
 				|| matches(method, requestUri, "GET", "/api/v1/products/**")
-				|| matches(method, requestUri, "GET", "/api/v1/categories/**")
-				|| PATH_MATCHER.match("/api/v1/ai/**", requestUri);
+				|| matches(method, requestUri, "GET", "/api/v1/categories/**");
 	}
 
 	@Override

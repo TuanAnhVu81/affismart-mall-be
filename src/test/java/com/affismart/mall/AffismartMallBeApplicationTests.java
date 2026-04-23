@@ -22,6 +22,7 @@ import com.affismart.mall.modules.affiliate.repository.ReferralLinkRepository;
 import com.affismart.mall.modules.affiliate.repository.BlockedClickLogRepository;
 import com.affismart.mall.modules.affiliate.repository.CommissionRepository;
 import com.affismart.mall.modules.affiliate.repository.PayoutRequestRepository;
+import com.affismart.mall.modules.ai.repository.RecommendationEventRepository;
 import com.affismart.mall.config.RestAuthenticationEntryPoint;
 import com.affismart.mall.config.RestAccessDeniedHandler;
 import com.affismart.mall.modules.auth.security.JwtAuthenticationFilter;
@@ -86,6 +87,9 @@ class AffismartMallBeApplicationTests {
 
 	@MockitoBean
 	private PayoutRequestRepository payoutRequestRepository;
+
+	@MockitoBean
+	private RecommendationEventRepository recommendationEventRepository;
 
 	@MockitoBean
 	private RestAuthenticationEntryPoint restAuthenticationEntryPoint;
