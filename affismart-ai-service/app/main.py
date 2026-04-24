@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.chat import router as chat_router
 from app.api.recommendations import get_recommendation_service, router as recommendation_router
 from app.schemas.recommendations import HealthResponse
 from app.services.config import get_settings
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(recommendation_router)
+app.include_router(chat_router)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["health"])

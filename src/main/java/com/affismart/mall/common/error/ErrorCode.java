@@ -214,6 +214,11 @@ public enum ErrorCode {
 			"Failed to upload file",
 			HttpStatus.BAD_GATEWAY
 	),
+	AI_SERVICE_UNAVAILABLE(
+			"AI_SERVICE_UNAVAILABLE",
+			"AI service is unavailable",
+			HttpStatus.SERVICE_UNAVAILABLE
+	),
 	INTERNAL_SERVER_ERROR(
 			"INTERNAL_SERVER_ERROR",
 			"An unexpected error occurred",

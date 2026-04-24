@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     default_limit: int = Field(default=12, alias="AI_DEFAULT_LIMIT")
     max_limit: int = Field(default=24, alias="AI_MAX_LIMIT")
     popularity_fallback_limit: int = Field(default=100, alias="AI_POPULARITY_FALLBACK_LIMIT")
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
 
     model_config = SettingsConfigDict(
         env_file=".env",
