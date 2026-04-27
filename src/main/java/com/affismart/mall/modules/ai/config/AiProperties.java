@@ -9,5 +9,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.ai")
 public class AiProperties {
 
-	private String baseUrl = "http://localhost:8001";
+	private String baseUrl = "http://localhost:8000";
 }

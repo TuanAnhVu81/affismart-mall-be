@@ -72,7 +72,7 @@ app:
       cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/payment/cancel}
       currency: ${STRIPE_CURRENCY:vnd}
   ai:
-    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8001}
+    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
   inventory:
     low-stock-threshold: 10
     low-stock-cron: "0 0 0 * * ?"

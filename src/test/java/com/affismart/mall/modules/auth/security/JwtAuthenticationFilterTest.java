@@ -66,6 +66,36 @@ class JwtAuthenticationFilterTest {
 	}
 
 	@Test
+	@DisplayName("shouldNotFilter: admin low-stock endpoint returns false")
+	void shouldNotFilter_AdminLowStockEndpoint_ReturnsFalse() {
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/products/low-stock");
+
+		boolean result = jwtAuthenticationFilter.shouldNotFilter(request);
+
+		assertThat(result).isFalse();
+	}
+
+	@Test
+	@DisplayName("shouldNotFilter: admin category endpoint returns false")
+	void shouldNotFilter_AdminCategoryEndpoint_ReturnsFalse() {
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/categories/admin");
+
+		boolean result = jwtAuthenticationFilter.shouldNotFilter(request);
+
+		assertThat(result).isFalse();
+	}
+
+	@Test
+	@DisplayName("shouldNotFilter: public category slug endpoint returns true")
+	void shouldNotFilter_PublicCategorySlugEndpoint_ReturnsTrue() {
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/categories/electronics");
+
+		boolean result = jwtAuthenticationFilter.shouldNotFilter(request);
+
+		assertThat(result).isTrue();
+	}
+
+	@Test
 	@DisplayName("doFilterInternal: Edge Case - missing authorization header continues filter chain")
 	void doFilterInternal_MissingAuthorizationHeader_ContinuesFilterChain() throws Exception {
 		// Given

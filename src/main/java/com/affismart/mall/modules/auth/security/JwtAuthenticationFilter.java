@@ -8,6 +8,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Set;
 import java.util.Objects;
 import org.springframework.http.HttpHeaders;
 import org.slf4j.Logger;
@@ -30,6 +31,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private static final String BEARER_PREFIX = "Bearer ";
 	private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+	private static final Set<String> RESERVED_PRODUCT_GET_PATHS = Set.of("search", "low-stock", "admin");
+	private static final Set<String> RESERVED_CATEGORY_GET_PATHS = Set.of("admin");
 
 	private final JwtService jwtService;
 	private final UserDetailsService userDetailsService;
@@ -60,8 +63,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				|| "/swagger-ui.html".equals(requestUri)
 				|| PATH_MATCHER.match("/v3/api-docs/**", requestUri)
 				|| "/error".equals(requestUri)
-				|| matches(method, requestUri, "GET", "/api/v1/products/**")
-				|| matches(method, requestUri, "GET", "/api/v1/categories/**");
+				|| isPublicProductGetRequest(method, requestUri)
+				|| isPublicCategoryGetRequest(method, requestUri);
 	}
 
 	@Override
@@ -126,6 +129,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private boolean matches(String method, String requestUri, String expectedMethod, String pattern) {
 		return expectedMethod.equalsIgnoreCase(method) && PATH_MATCHER.match(pattern, requestUri);
+	}
+
+	private boolean isPublicProductGetRequest(String method, String requestUri) {
+		if (!"GET".equalsIgnoreCase(method)) {
+			return false;
+		}
+
+		if ("/api/v1/products".equals(requestUri) || "/api/v1/products/search".equals(requestUri)) {
+			return true;
+		}
+
+		String slug = extractSingleSegment("/api/v1/products/", requestUri);
+		return slug != null && !RESERVED_PRODUCT_GET_PATHS.contains(slug);
+	}
+
+	private boolean isPublicCategoryGetRequest(String method, String requestUri) {
+		if (!"GET".equalsIgnoreCase(method)) {
+			return false;
+		}
+
+		if ("/api/v1/categories".equals(requestUri)) {
+			return true;
+		}
+
+		String slug = extractSingleSegment("/api/v1/categories/", requestUri);
+		return slug != null && !RESERVED_CATEGORY_GET_PATHS.contains(slug);
+	}
+
+	private String extractSingleSegment(String prefix, String requestUri) {
+		if (!requestUri.startsWith(prefix) || requestUri.length() <= prefix.length()) {
+			return null;
+		}
+
+		String remainder = requestUri.substring(prefix.length());
+		return remainder.contains("/") ? null : remainder;
 	}
 
 	private String extractToken(String authorizationHeader) {
