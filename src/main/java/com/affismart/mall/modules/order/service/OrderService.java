@@ -216,7 +216,8 @@ public class OrderService {
 		if (!StringUtils.hasText(refCode)) {
 			return null;
 		}
-		return affiliateAccountLookupRepository.findAttributionByRefCode(refCode.trim())
+		String normalizedRefCode = refCode.trim().toUpperCase(Locale.ROOT);
+		return affiliateAccountLookupRepository.findAttributionByRefCode(normalizedRefCode)
 				.orElse(null);
 	}
 

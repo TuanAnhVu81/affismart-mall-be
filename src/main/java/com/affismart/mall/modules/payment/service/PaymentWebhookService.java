@@ -7,6 +7,7 @@ import com.affismart.mall.modules.order.entity.Order;
 import com.affismart.mall.modules.order.repository.OrderRepository;
 import com.affismart.mall.modules.order.service.CommissionService;
 import com.affismart.mall.modules.order.service.OrderStatusService;
+import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.StripeObject;
@@ -34,8 +35,7 @@ public class PaymentWebhookService {
 			PaymentWebhookVerifier webhookVerifier,
 			OrderRepository orderRepository,
 			OrderStatusService orderStatusService,
-			CommissionService commissionService
-	) {
+			CommissionService commissionService) {
 		this.webhookVerifier = webhookVerifier;
 		this.orderRepository = orderRepository;
 		this.orderStatusService = orderStatusService;
@@ -46,8 +46,7 @@ public class PaymentWebhookService {
 		if (!StringUtils.hasText(signatureHeader)) {
 			throw new AppException(
 					ErrorCode.PAYMENT_WEBHOOK_SIGNATURE_INVALID,
-					"Missing Stripe-Signature header"
-			);
+					"Missing Stripe-Signature header");
 		}
 
 		if (!StringUtils.hasText(payload)) {
@@ -80,7 +79,8 @@ public class PaymentWebhookService {
 				.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
 		if (isPaidOrHigher(currentOrder.getStatus())) {
-			log.info("Skip duplicate checkout completion webhook for order_id={} with status={}", orderId, currentOrder.getStatus());
+			log.info("Skip duplicate checkout completion webhook for order_id={} with status={}", orderId,
+					currentOrder.getStatus());
 			return;
 		}
 
@@ -88,8 +88,7 @@ public class PaymentWebhookService {
 			log.warn(
 					"Skip checkout completion webhook because order is not pending. order_id={}, status={}",
 					orderId,
-					currentOrder.getStatus()
-			);
+					currentOrder.getStatus());
 			return;
 		}
 
@@ -100,10 +99,25 @@ public class PaymentWebhookService {
 	private Session extractCheckoutSession(Event event) {
 		EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
 		Optional<StripeObject> dataObject = deserializer.getObject();
-		if (dataObject.isEmpty() || !(dataObject.get() instanceof Session session)) {
+		StripeObject stripeObject = dataObject.orElseGet(() -> deserializeUnsafe(event, deserializer));
+		if (!(stripeObject instanceof Session session)) {
 			throw new AppException(ErrorCode.INVALID_INPUT, "Unsupported Stripe webhook payload object");
 		}
 		return session;
+	}
+
+	private StripeObject deserializeUnsafe(Event event, EventDataObjectDeserializer deserializer) {
+		try {
+			StripeObject stripeObject = deserializer.deserializeUnsafe();
+			log.warn(
+					"Stripe webhook payload required unsafe deserialization. event_id={}, type={}",
+					event.getId(),
+					event.getType()
+			);
+			return stripeObject;
+		} catch (EventDataObjectDeserializationException exception) {
+			throw new AppException(ErrorCode.INVALID_INPUT, "Unsupported Stripe webhook payload object");
+		}
 	}
 
 	private Long extractOrderIdFromMetadata(Map<String, String> metadata) {

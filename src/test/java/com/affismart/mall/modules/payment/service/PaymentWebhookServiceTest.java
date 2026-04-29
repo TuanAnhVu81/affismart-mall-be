@@ -121,6 +121,36 @@ class PaymentWebhookServiceTest {
 	}
 
 	@Test
+	@DisplayName("handleVerifiedEvent: checkout.session.completed falls back to unsafe deserialization when SDK cannot deserialize object")
+	void handleVerifiedEvent_CheckoutCompletedWithEmptyDeserializer_UsesUnsafeDeserialization() throws Exception {
+		// Given
+		Event event = mock(Event.class);
+		EventDataObjectDeserializer deserializer = mock(EventDataObjectDeserializer.class);
+		Session session = new Session();
+		session.setId("cs_test_502");
+		session.setMetadata(Map.of("orderId", "502"));
+
+		Order currentOrder = createOrder(502L, OrderStatus.PENDING, null);
+		Order paidOrder = createOrder(502L, OrderStatus.PAID, null);
+		paidOrder.setStripeSessionId("cs_test_502");
+
+		given(event.getId()).willReturn("evt_test_502");
+		given(event.getType()).willReturn("checkout.session.completed");
+		given(event.getDataObjectDeserializer()).willReturn(deserializer);
+		given(deserializer.getObject()).willReturn(Optional.empty());
+		given(deserializer.deserializeUnsafe()).willReturn(session);
+		given(orderRepository.findById(502L)).willReturn(Optional.of(currentOrder));
+		given(orderStatusService.markOrderPaidByWebhook(502L, "cs_test_502")).willReturn(paidOrder);
+
+		// When
+		paymentWebhookService.handleVerifiedEvent(event);
+
+		// Then
+		verify(orderStatusService).markOrderPaidByWebhook(502L, "cs_test_502");
+		verify(commissionService).createPendingCommissionForPaidOrder(paidOrder);
+	}
+
+	@Test
 	@DisplayName("handleVerifiedEvent: already paid order skips fulfillment (idempotent)")
 	void handleVerifiedEvent_AlreadyPaidOrder_SkipsFulfillment() {
 		// Given

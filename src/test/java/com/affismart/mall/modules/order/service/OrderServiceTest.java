@@ -295,6 +295,39 @@ class OrderServiceTest {
 	}
 
 	@Test
+	@DisplayName("createOrder: normalizes refCode before affiliate lookup")
+	void createOrder_LowercaseRefCode_NormalizesBeforeLookup() {
+		// Given
+		Long userId = 1L;
+		CreateOrderRequest request = new CreateOrderRequest(
+				"address",
+				List.of(new CreateOrderItemRequest(10L, 1)),
+				" refabc123 "
+		);
+		User user = createUser(userId);
+		Product product = createProduct(10L, new BigDecimal("20.00"), 5, true);
+
+		given(userRepository.findById(userId)).willReturn(Optional.of(user));
+		given(productRepository.findAllByIdInForUpdate(anyCollection())).willReturn(List.of(product));
+		given(affiliateAccountLookupRepository.findAttributionByRefCode("REFABC123"))
+				.willReturn(Optional.of(new AffiliateAttribution(99L, 777L)));
+		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> {
+			Order order = invocation.getArgument(0);
+			order.setId(71L);
+			return order;
+		});
+
+		// When
+		orderService.createOrder(userId, request);
+
+		// Then
+		verify(affiliateAccountLookupRepository).findAttributionByRefCode("REFABC123");
+		verify(orderRepository).save(orderCaptor.capture());
+		assertThat(orderCaptor.getValue().getAffiliateAccountId()).isEqualTo(99L);
+		assertThat(orderCaptor.getValue().getReferralLinkId()).isEqualTo(777L);
+	}
+
+	@Test
 	@DisplayName("getMyOrders: returns paginated order summaries for current user")
 	void getMyOrders_ValidInput_ReturnsPageResponse() {
 		// Given

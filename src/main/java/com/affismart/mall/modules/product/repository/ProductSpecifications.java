@@ -63,10 +63,9 @@ public final class ProductSpecifications {
 		String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
 		return (root, query, criteriaBuilder) -> criteriaBuilder.or(
 				criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern),
-				criteriaBuilder.like(
-						criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("description"), "")),
-						pattern
-				)
+				criteriaBuilder.like(criteriaBuilder.lower(root.get("sku")), pattern),
+				criteriaBuilder.like(criteriaBuilder.lower(root.get("slug")), pattern),
+				criteriaBuilder.like(criteriaBuilder.lower(root.get("category").get("name")), pattern)
 		);
 	}
 
