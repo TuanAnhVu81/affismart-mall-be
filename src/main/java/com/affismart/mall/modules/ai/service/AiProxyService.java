@@ -107,6 +107,7 @@ public class AiProxyService {
 			HttpRequest httpRequest = HttpRequest.newBuilder(resolveInternalUri("/internal/chat"))
 					.header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
 					.header("Accept", MediaType.APPLICATION_JSON_VALUE)
+					.timeout(aiProperties.getReadTimeout())
 					.POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
 					.build();
 

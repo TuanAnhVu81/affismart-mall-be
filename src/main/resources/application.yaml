@@ -73,6 +73,8 @@ app:
       currency: ${STRIPE_CURRENCY:vnd}
   ai:
     base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
+    connect-timeout: ${AI_SERVICE_CONNECT_TIMEOUT:3s}
+    read-timeout: ${AI_SERVICE_READ_TIMEOUT:10s}
   inventory:
     low-stock-threshold: 10
     low-stock-cron: "0 0 0 * * ?"

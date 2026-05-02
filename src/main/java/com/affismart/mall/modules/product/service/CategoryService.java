@@ -1,5 +1,6 @@
 package com.affismart.mall.modules.product.service;
 
+import com.affismart.mall.config.CacheConfig;
 import com.affismart.mall.common.error.ErrorCode;
 import com.affismart.mall.exception.AppException;
 import com.affismart.mall.modules.product.dto.request.UpdateCategoryStatusRequest;
@@ -8,6 +9,8 @@ import com.affismart.mall.modules.product.dto.response.CategoryResponse;
 import com.affismart.mall.modules.product.entity.Category;
 import com.affismart.mall.modules.product.repository.CategoryRepository;
 import java.util.List;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -22,6 +25,7 @@ public class CategoryService {
 	}
 
 	@Transactional
+	@CacheEvict(cacheNames = CacheConfig.CATEGORIES_CACHE, allEntries = true)
 	public CategoryResponse createCategory(UpsertCategoryRequest request) {
 		String normalizedName = normalizeName(request.name());
 		String resolvedSlug = resolveSlug(request.slug(), normalizedName);
@@ -36,6 +40,7 @@ public class CategoryService {
 	}
 
 	@Transactional
+	@CacheEvict(cacheNames = CacheConfig.CATEGORIES_CACHE, allEntries = true)
 	public CategoryResponse updateCategory(Long categoryId, UpsertCategoryRequest request) {
 		Category category = getRequiredCategory(categoryId);
 		String normalizedName = normalizeName(request.name());
@@ -48,6 +53,7 @@ public class CategoryService {
 	}
 
 	@Transactional
+	@CacheEvict(cacheNames = CacheConfig.CATEGORIES_CACHE, allEntries = true)
 	public CategoryResponse updateCategoryStatus(Long categoryId, UpdateCategoryStatusRequest request) {
 		Category category = getRequiredCategory(categoryId);
 		category.setActive(request.active());
@@ -55,6 +61,7 @@ public class CategoryService {
 	}
 
 	@Transactional(readOnly = true)
+	@Cacheable(cacheNames = CacheConfig.CATEGORIES_CACHE)
 	public List<CategoryResponse> getActiveCategories() {
 		return categoryRepository.findAllByActiveTrueOrderByNameAsc()
 				.stream()

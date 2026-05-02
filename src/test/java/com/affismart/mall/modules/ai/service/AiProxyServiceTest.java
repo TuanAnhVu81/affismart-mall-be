@@ -14,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -149,6 +150,7 @@ class AiProxyServiceTest {
 		verify(aiHttpClient).send(httpRequestCaptor.capture(), any(HttpResponse.BodyHandler.class));
 		assertThat(httpRequestCaptor.getValue().method()).isEqualTo("POST");
 		assertThat(httpRequestCaptor.getValue().uri().toString()).isEqualTo("http://localhost:8000/internal/chat");
+		assertThat(httpRequestCaptor.getValue().timeout()).contains(Duration.ofSeconds(10));
 		assertThat(httpRequestCaptor.getValue().headers().firstValue("Content-Type")).contains("application/json");
 	}
 
