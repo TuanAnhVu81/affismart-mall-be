@@ -2,6 +2,21 @@
 CREATE INDEX IF NOT EXISTS idx_recommendation_events_created_at
     ON recommendation_events (created_at DESC);
 
+-- Trigram indexes for product keyword search using lower(...) LIKE '%keyword%'
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS idx_products_name_trgm
+    ON products USING gin (lower(name) gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_sku_trgm
+    ON products USING gin (lower(sku) gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_slug_trgm
+    ON products USING gin (lower(slug) gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_categories_name_trgm
+    ON categories USING gin (lower(name) gin_trgm_ops);
+
 -- Composite indexes for hot-path order queries:
 -- Supports "GET /orders/my" filtered by user with newest-first ordering
 CREATE INDEX IF NOT EXISTS idx_orders_user_created_at

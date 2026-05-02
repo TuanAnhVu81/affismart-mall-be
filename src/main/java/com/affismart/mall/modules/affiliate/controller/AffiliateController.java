@@ -26,14 +26,21 @@ import com.affismart.mall.modules.affiliate.service.ClickTrackingService;
 import com.affismart.mall.modules.affiliate.service.PayoutService;
 import com.affismart.mall.modules.auth.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,6 +52,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Affiliate", description = "Endpoints for affiliate application and referral link management")
+@Validated
 @RestController
 @RequestMapping("/api/v1/affiliate")
 public class AffiliateController {
@@ -118,8 +126,8 @@ public class AffiliateController {
 	@GetMapping("/me/links")
 	public ApiResponse<PageResponse<ReferralLinkResponse>> getMyReferralLinks(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
 			@RequestParam(required = false) Boolean active
@@ -135,7 +143,7 @@ public class AffiliateController {
 	@PutMapping("/me/links/{id}/status")
 	public ApiResponse<ReferralLinkResponse> updateMyReferralLinkStatus(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpdateReferralLinkStatusRequest request
 	) {
 		return ApiResponse.success(
@@ -149,8 +157,8 @@ public class AffiliateController {
 	@GetMapping("/me/commissions")
 	public ApiResponse<PageResponse<CommissionResponse>> getMyCommissions(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
 			@RequestParam(required = false) CommissionStatus status,
@@ -173,6 +181,7 @@ public class AffiliateController {
 	}
 
 	@Operation(summary = "Track referral click (Public)")
+	@SecurityRequirements
 	@PostMapping("/track-click")
 	public ApiResponse<Void> trackClick(
 			@Valid @RequestBody TrackClickRequest request,
@@ -200,8 +209,8 @@ public class AffiliateController {
 	@GetMapping("/me/payouts")
 	public ApiResponse<PageResponse<PayoutRequestResponse>> getMyPayoutRequests(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
 			@RequestParam(required = false) PayoutRequestStatus status
@@ -216,8 +225,8 @@ public class AffiliateController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping("/accounts")
 	public ApiResponse<PageResponse<AdminAffiliateAccountResponse>> getAffiliateAccounts(
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
 			@RequestParam(required = false) AffiliateAccountStatus status
@@ -232,7 +241,7 @@ public class AffiliateController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/accounts/{id}/status")
 	public ApiResponse<AffiliateAccountResponse> updateAffiliateAccountStatus(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpdateAffiliateAccountStatusRequest request
 	) {
 		return ApiResponse.success(
@@ -245,7 +254,7 @@ public class AffiliateController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/accounts/{id}/commission-rate")
 	public ApiResponse<AdminAffiliateAccountResponse> updateAffiliateCommissionRate(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpdateAffiliateCommissionRateRequest request
 	) {
 		return ApiResponse.success(
@@ -258,8 +267,8 @@ public class AffiliateController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping("/payouts")
 	public ApiResponse<PageResponse<AdminPayoutRequestResponse>> getPayoutRequests(
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
 			@RequestParam(required = false) PayoutRequestStatus status
@@ -274,7 +283,7 @@ public class AffiliateController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/payouts/{id}/status")
 	public ApiResponse<PayoutRequestResponse> updatePayoutStatus(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpdatePayoutRequestStatusRequest request
 	) {
 		return ApiResponse.success(
@@ -296,7 +305,7 @@ public class AffiliateController {
 	@Operation(summary = "Remove one blocked IP from affiliate click tracking (Admin only)")
 	@PreAuthorize("hasRole('ADMIN')")
 	@DeleteMapping("/blocked-ips/{ip}")
-	public ApiResponse<Void> unblockIp(@PathVariable String ip) {
+	public ApiResponse<Void> unblockIp(@PathVariable @NotBlank @Size(max = 45) String ip) {
 		clickTrackingService.unblockIp(ip);
 		return ApiResponse.success("Blocked IP removed successfully");
 	}

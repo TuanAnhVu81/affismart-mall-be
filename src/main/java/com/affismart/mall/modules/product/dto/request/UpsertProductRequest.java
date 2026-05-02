@@ -22,6 +22,7 @@ public record UpsertProductRequest(
 		@Size(max = 300, message = "Product slug must not exceed 300 characters")
 		String slug,
 
+		@Size(max = 4000, message = "Product description must not exceed 4000 characters")
 		String description,
 
 		@NotNull(message = "Product price is required")

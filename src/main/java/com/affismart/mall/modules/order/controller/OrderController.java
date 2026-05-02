@@ -14,7 +14,11 @@ import com.affismart.mall.modules.order.service.OrderStatusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import java.time.LocalDateTime;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.format.annotation.DateTimeFormat;
 
 @Tag(name = "Orders", description = "Endpoints for checkout and order management")
+@Validated
 @RestController
 @RequestMapping("/api/v1/orders")
 public class OrderController {
@@ -58,8 +63,8 @@ public class OrderController {
 	@GetMapping("/my")
 	public ApiResponse<PageResponse<OrderSummaryResponse>> getMyOrders(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir
 	) {
@@ -74,7 +79,7 @@ public class OrderController {
 	@GetMapping("/my/{id}")
 	public ApiResponse<OrderDetailResponse> getMyOrderDetail(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@PathVariable Long id
+			@PathVariable @Positive Long id
 	) {
 		return ApiResponse.success(
 				"My order detail retrieved successfully",
@@ -87,7 +92,7 @@ public class OrderController {
 	@PutMapping("/my/{id}/cancel")
 	public ApiResponse<Void> cancelMyOrder(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@PathVariable Long id
+			@PathVariable @Positive Long id
 	) {
 		orderStatusService.cancelMyOrder(principal.getUserId(), id);
 		return ApiResponse.success("Order cancelled successfully");
@@ -97,8 +102,8 @@ public class OrderController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping
 	public ApiResponse<PageResponse<OrderSummaryResponse>> getOrdersForAdmin(
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
 			@RequestParam(required = false) OrderStatus status,
@@ -114,7 +119,7 @@ public class OrderController {
 	@Operation(summary = "Get order detail for admin (Admin only)")
 	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping("/{id}")
-	public ApiResponse<OrderDetailResponse> getOrderDetailForAdmin(@PathVariable Long id) {
+	public ApiResponse<OrderDetailResponse> getOrderDetailForAdmin(@PathVariable @Positive Long id) {
 		return ApiResponse.success(
 				"Order retrieved successfully",
 				orderService.getOrderDetailForAdmin(id)
@@ -125,7 +130,7 @@ public class OrderController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/{id}/status")
 	public ApiResponse<OrderDetailResponse> updateOrderStatusByAdmin(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpdateOrderStatusRequest request
 	) {
 		orderStatusService.updateOrderStatusByAdmin(id, request.status());

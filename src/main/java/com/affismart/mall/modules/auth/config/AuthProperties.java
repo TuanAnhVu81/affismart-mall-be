@@ -1,11 +1,14 @@
 package com.affismart.mall.modules.auth.config;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.hibernate.validator.constraints.time.DurationMax;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.validation.annotation.Validated;
 
 @Getter
@@ -31,6 +34,8 @@ public class AuthProperties {
 		private String issuer = "affismart-mall-be";
 
 		@NotNull
+		@DurationMin(minutes = 5)
+		@DurationMax(hours = 24)
 		private Duration accessTokenTtl = Duration.ofMinutes(30);
 	}
 
@@ -39,12 +44,16 @@ public class AuthProperties {
 	public static class RefreshToken {
 
 		@NotNull
+		@DurationMin(days = 1)
 		private Duration ttl = Duration.ofDays(7);
 
 		@NotNull
+		@DurationMin(hours = 1)
 		private Duration usedTokenTtl = Duration.ofDays(7);
 
 		@NotNull
+		@DurationMin(seconds = 1)
+		@DurationMax(minutes = 1)
 		private Duration rotateLockTtl = Duration.ofSeconds(5);
 
 		@NotBlank
@@ -60,8 +69,10 @@ public class AuthProperties {
 
 		private boolean httpOnly = true;
 
+		@Min(1)
 		private int maxSessions = 5;
 
+		@Min(32)
 		private int tokenEntropyBytes = 32;
 	}
 }

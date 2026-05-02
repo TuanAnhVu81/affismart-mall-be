@@ -10,6 +10,7 @@ import com.affismart.mall.modules.auth.model.AuthenticatedSession;
 import com.affismart.mall.modules.auth.service.AuthService;
 import com.affismart.mall.modules.auth.service.RefreshTokenCookieService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import static com.affismart.mall.common.error.ErrorCode.INVALID_REFRESH_TOKEN;
 
 @Tag(name = "Authentication", description = "Endpoints for user registration, login, and session management")
+@Validated
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -38,6 +41,7 @@ public class AuthController {
 	}
 
 	@Operation(summary = "Register a new user account", description = "Creates a new user with default CUSTOMER role and ACTIVE status")
+	@SecurityRequirements
 	@PostMapping("/register")
 	public ResponseEntity<ApiResponse<AuthUserResponse>> register(@Valid @RequestBody RegisterRequest request) {
 		AuthUserResponse response = authService.register(request);
@@ -46,6 +50,7 @@ public class AuthController {
 	}
 
 	@Operation(summary = "Login with email and password", description = "Returns an access token in the body and a refresh token in a secure HttpOnly cookie")
+	@SecurityRequirements
 	@PostMapping("/login")
 	public ResponseEntity<ApiResponse<AuthTokenResponse>> login(
 			@Valid @RequestBody LoginRequest request,
@@ -64,6 +69,7 @@ public class AuthController {
 	}
 
 	@Operation(summary = "Refresh access token", description = "Rotates the refresh token and returns a new access token")
+	@SecurityRequirements
 	@PostMapping("/refresh")
 	public ResponseEntity<ApiResponse<AuthTokenResponse>> refresh(HttpServletRequest request) {
 		String refreshToken = extractRefreshToken(request);

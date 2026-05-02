@@ -30,7 +30,8 @@ import org.springframework.context.annotation.Configuration;
 		type = SecuritySchemeType.HTTP,
 		scheme = "bearer",
 		bearerFormat = "JWT",
-		in = SecuritySchemeIn.HEADER
+		in = SecuritySchemeIn.HEADER,
+		description = "Paste the JWT access token returned by /api/v1/auth/login or /api/v1/auth/refresh"
 )
 public class OpenApiConfig {
 }

@@ -6,10 +6,15 @@ import com.affismart.mall.modules.product.dto.request.UpsertCategoryRequest;
 import com.affismart.mall.modules.product.dto.response.CategoryResponse;
 import com.affismart.mall.modules.product.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Categories", description = "Endpoints for category management")
+@Validated
 @RestController
 @RequestMapping("/api/v1/categories")
 public class CategoryController {
@@ -31,6 +37,7 @@ public class CategoryController {
 	}
 
 	@Operation(summary = "Get active categories (Public)")
+	@SecurityRequirements
 	@GetMapping
 	public ApiResponse<List<CategoryResponse>> getCategories() {
 		return ApiResponse.success("Categories retrieved successfully", categoryService.getActiveCategories());
@@ -46,8 +53,9 @@ public class CategoryController {
 	}
 
 	@Operation(summary = "Get active category by slug (Public)")
+	@SecurityRequirements
 	@GetMapping("/{slug}")
-	public ApiResponse<CategoryResponse> getCategoryBySlug(@PathVariable String slug) {
+	public ApiResponse<CategoryResponse> getCategoryBySlug(@PathVariable @NotBlank @Size(max = 120) String slug) {
 		return ApiResponse.success("Category retrieved successfully", categoryService.getActiveCategoryBySlug(slug));
 	}
 
@@ -62,7 +70,7 @@ public class CategoryController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/{id}")
 	public ApiResponse<CategoryResponse> updateCategory(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpsertCategoryRequest request
 	) {
 		return ApiResponse.success("Category updated successfully", categoryService.updateCategory(id, request));
@@ -72,7 +80,7 @@ public class CategoryController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/{id}/status")
 	public ApiResponse<CategoryResponse> updateCategoryStatus(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpdateCategoryStatusRequest request
 	) {
 		return ApiResponse.success("Category status updated successfully", categoryService.updateCategoryStatus(id, request));

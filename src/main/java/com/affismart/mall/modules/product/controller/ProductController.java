@@ -9,12 +9,19 @@ import com.affismart.mall.modules.product.dto.response.ProductImageUploadRespons
 import com.affismart.mall.modules.product.dto.response.ProductResponse;
 import com.affismart.mall.modules.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Products", description = "Endpoints for product and catalog management")
+@Validated
 @RestController
 @RequestMapping("/api/v1/products")
 public class ProductController {
@@ -40,12 +48,13 @@ public class ProductController {
 	}
 
 	@Operation(summary = "Filter active products (Public)")
+	@SecurityRequirements
 	@GetMapping
 	public ApiResponse<PageResponse<ProductResponse>> getProducts(
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(defaultValue = "newest") String sortBy,
-			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false) @Positive Long categoryId,
 			@RequestParam(required = false) BigDecimal minPrice,
 			@RequestParam(required = false) BigDecimal maxPrice
 	) {
@@ -59,12 +68,12 @@ public class ProductController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@GetMapping("/admin")
 	public ApiResponse<PageResponse<ProductResponse>> getAdminProducts(
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(name = "sort_by", defaultValue = "created_at") String sortBy,
 			@RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
-			@RequestParam(required = false) String keyword,
-			@RequestParam(name = "category_id", required = false) Long categoryId,
+			@RequestParam(required = false) @Size(max = 100) String keyword,
+			@RequestParam(name = "category_id", required = false) @Positive Long categoryId,
 			@RequestParam(name = "min_price", required = false) BigDecimal minPrice,
 			@RequestParam(name = "max_price", required = false) BigDecimal maxPrice,
 			@RequestParam(required = false) Boolean active
@@ -76,13 +85,14 @@ public class ProductController {
 	}
 
 	@Operation(summary = "Search active products by keyword (Public)")
+	@SecurityRequirements
 	@GetMapping("/search")
 	public ApiResponse<PageResponse<ProductResponse>> searchProducts(
-			@RequestParam String keyword,
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
+			@RequestParam @NotBlank @Size(max = 100) String keyword,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
 			@RequestParam(defaultValue = "newest") String sortBy,
-			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false) @Positive Long categoryId,
 			@RequestParam(required = false) BigDecimal minPrice,
 			@RequestParam(required = false) BigDecimal maxPrice
 	) {
@@ -100,8 +110,9 @@ public class ProductController {
 	}
 
 	@Operation(summary = "Get active product by slug (Public)")
+	@SecurityRequirements
 	@GetMapping("/{slug}")
-	public ApiResponse<ProductResponse> getProductBySlug(@PathVariable String slug) {
+	public ApiResponse<ProductResponse> getProductBySlug(@PathVariable @NotBlank @Size(max = 300) String slug) {
 		return ApiResponse.success("Product retrieved successfully", productService.getActiveProductBySlug(slug));
 	}
 
@@ -116,7 +127,7 @@ public class ProductController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/{id}")
 	public ApiResponse<ProductResponse> updateProduct(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpsertProductRequest request
 	) {
 		return ApiResponse.success("Product updated successfully", productService.updateProduct(id, request));
@@ -126,7 +137,7 @@ public class ProductController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/{id}/status")
 	public ApiResponse<ProductResponse> updateProductStatus(
-			@PathVariable Long id,
+			@PathVariable @Positive Long id,
 			@Valid @RequestBody UpdateProductStatusRequest request
 	) {
 		return ApiResponse.success("Product status updated successfully", productService.updateProductStatus(id, request));

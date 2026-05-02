@@ -13,10 +13,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -54,6 +57,26 @@ public class GlobalExceptionHandler {
 		return buildResponse(ErrorCode.INVALID_INPUT, errors);
 	}
 
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMissingServletRequestParameter(
+			MissingServletRequestParameterException exception
+	) {
+		Map<String, String> errors = Map.of(
+				exception.getParameterName(),
+				"Required request parameter is missing"
+		);
+		return buildResponse(ErrorCode.INVALID_INPUT, errors);
+	}
+
+	@ExceptionHandler(MissingRequestHeaderException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMissingRequestHeader(MissingRequestHeaderException exception) {
+		Map<String, String> errors = Map.of(
+				exception.getHeaderName(),
+				"Required request header is missing"
+		);
+		return buildResponse(ErrorCode.INVALID_INPUT, errors);
+	}
+
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadable(HttpMessageNotReadableException exception) {
 		Map<String, String> errors = Map.of("request_body", "Malformed or unreadable JSON payload");
@@ -63,7 +86,15 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AppException.class)
 	public ResponseEntity<ApiResponse<Void>> handleAppException(AppException exception) {
 		ErrorCode errorCode = exception.getErrorCode();
-		ApiResponse<Void> body = ApiResponse.error(errorCode.getCode(), exception.getMessage());
+		if (errorCode.getHttpStatus().is5xxServerError()) {
+			log.error("Application exception: code={}", errorCode.getCode(), exception);
+		} else {
+			log.warn("Application exception: code={}, message={}", errorCode.getCode(), exception.getMessage());
+		}
+		String responseMessage = errorCode.getHttpStatus().is5xxServerError()
+				? errorCode.getMessage()
+				: exception.getMessage();
+		ApiResponse<Void> body = ApiResponse.error(errorCode.getCode(), responseMessage);
 		return ResponseEntity.status(errorCode.getHttpStatus()).body(body);
 	}
 
@@ -75,6 +106,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AccessDeniedException.class)
 	public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException exception) {
 		return buildResponse(ErrorCode.ACCESS_DENIED);
+	}
+
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException exception) {
+		return buildResponse(ErrorCode.RESOURCE_NOT_FOUND);
 	}
 
 	@ExceptionHandler(Exception.class)

@@ -11,9 +11,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Payment", description = "Endpoints for checkout payment flow")
+@Validated
 @RestController
 @RequestMapping("/api/v1/payment")
 public class PaymentController {
@@ -69,7 +72,7 @@ public class PaymentController {
 	@SecurityRequirements
 	@GetMapping("/success")
 	public ResponseEntity<Void> handlePaymentSuccessRedirect(
-			@RequestParam(name = "session_id", required = false) String sessionId
+			@RequestParam(name = "session_id", required = false) @Size(max = 255) String sessionId
 	) {
 		return paymentRedirectService.redirectToFrontendSuccess(sessionId);
 	}
