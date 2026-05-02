@@ -219,6 +219,11 @@ public enum ErrorCode {
 			"AI service is unavailable",
 			HttpStatus.SERVICE_UNAVAILABLE
 	),
+	AI_CHAT_RATE_LIMITED(
+			"AI_CHAT_RATE_LIMITED",
+			"Bạn đang nhắn tin quá nhanh, vui lòng thử lại sau",
+			HttpStatus.TOO_MANY_REQUESTS
+	),
 	INTERNAL_SERVER_ERROR(
 			"INTERNAL_SERVER_ERROR",
 			"An unexpected error occurred",

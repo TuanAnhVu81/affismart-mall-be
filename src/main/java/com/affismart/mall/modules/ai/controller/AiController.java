@@ -4,6 +4,7 @@ import com.affismart.mall.common.response.ApiResponse;
 import com.affismart.mall.modules.ai.dto.request.AiChatRequest;
 import com.affismart.mall.modules.ai.dto.response.AiChatResponse;
 import com.affismart.mall.modules.ai.dto.response.AiRecommendationResponse;
+import com.affismart.mall.modules.ai.service.AiChatRateLimiter;
 import com.affismart.mall.modules.ai.service.AiProxyService;
 import com.affismart.mall.modules.auth.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,9 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AiController {
 
 	private final AiProxyService aiProxyService;
+	private final AiChatRateLimiter aiChatRateLimiter;
 
-	public AiController(AiProxyService aiProxyService) {
+	public AiController(AiProxyService aiProxyService, AiChatRateLimiter aiChatRateLimiter) {
 		this.aiProxyService = aiProxyService;
+		this.aiChatRateLimiter = aiChatRateLimiter;
 	}
 
 	@Operation(summary = "Get homepage recommendations (Public, optional auth)")
@@ -75,9 +78,11 @@ public class AiController {
 			@Valid @RequestBody AiChatRequest request,
 			@AuthenticationPrincipal UserPrincipal principal
 	) {
+		Long userId = principal != null ? principal.getUserId() : null;
+		aiChatRateLimiter.checkAllowed(userId, request);
 		return ApiResponse.success(
 				"AI chat response retrieved successfully",
-				aiProxyService.chat(principal != null ? principal.getUserId() : null, request)
+				aiProxyService.chat(userId, request)
 		);
 	}
 }

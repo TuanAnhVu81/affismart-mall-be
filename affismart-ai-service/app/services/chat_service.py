@@ -10,9 +10,9 @@ from sqlalchemy import text
 from app.services.config import get_settings
 from app.services.database import engine
 
-# Explicitly unsafe/off-topic topics. The first layer stays intentionally small:
-# it blocks obvious policy/off-scope requests, while the Gemini system prompt
-# handles softer off-topic steering for normal conversation.
+# Hard-block: only block clearly toxic/policy-violating topics.
+# Off-topic steering for general knowledge, coding, etc. is handled entirely
+# by the system prompt below — keeping regex small avoids false positives.
 OFF_TOPIC_PATTERNS = (
     re.compile(r"\b(chinh tri|bau cu|quoc hoi|chinh phu|tong thong|thu tuong|dang cong san)\b"),
     re.compile(r"\b(chan doan|ke don thuoc|tu van dieu tri|benh vien)\b"),
@@ -64,7 +64,7 @@ class ChatService:
 
     def chat(self, message: str, user_id: int | None, session_id: str | None) -> dict:
         normalized_message = message.strip()
-        # Block only clearly off-topic messages; let Gemini handle on-topic enforcement
+        # Hard-block toxic topics; all other off-topic steering is done via the system prompt
         if self._is_off_topic(normalized_message):
             return self._build_response(RESTRICTED_ANSWER, True)
 
@@ -151,6 +151,7 @@ class ChatService:
         return max(tokens, key=len) if tokens else None
 
     def _is_off_topic(self, message: str) -> bool:
+        """Hard-block sensitive/policy-violating topics via regex."""
         normalized_message = self._normalize_for_topic_match(message)
         return any(pattern.search(normalized_message) for pattern in OFF_TOPIC_PATTERNS)
 
@@ -173,16 +174,19 @@ class ChatService:
     ) -> str:
         actor_context = f"user_id={user_id}" if user_id is not None else f"session_id={session_id or 'guest'}"
         return f"""
-You are the AffiSmart Mall shopping assistant.
-You MUST only answer questions using the product data provided below.
-Do NOT invent, guess, or reference any products outside this list.
-If the user asks for a product not in the list, say it is currently unavailable.
+You are a shopping assistant for AffiSmart Mall.
+Your ONLY job is to help users with: products, orders, shipping, payments, and affiliate links.
 
-IMPORTANT RULES:
-- Only reference products from the [PRODUCT CATALOG] section below.
-- Do not make up prices, product names, or stock information.
-- Answer in the same language the user is writing in (Vietnamese or English).
-- Keep answers concise and helpful.
+IMPORTANT RULES — follow strictly, no exceptions:
+1. ONLY answer questions that are directly related to shopping at AffiSmart Mall.
+2. If the user asks about coding, programming, science, math, history, recipes, 
+   travel, translation, writing, or ANY topic unrelated to shopping, you MUST respond 
+   ONLY with: "Toi chi ho tro cac cau hoi lien quan den mua sam tai AffiSmart Mall."
+3. ONLY reference products from the [PRODUCT CATALOG] section. NEVER invent product 
+   names, prices, or stock information.
+4. If no product in the catalog matches the user's request, say it is unavailable.
+5. Answer in the same language the user writes in (Vietnamese or English).
+6. Keep answers concise and helpful.
 
 [PRODUCT CATALOG]
 {catalog_context}
