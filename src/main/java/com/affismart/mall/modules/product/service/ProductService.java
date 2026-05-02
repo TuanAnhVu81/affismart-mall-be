@@ -159,7 +159,9 @@ public class ProductService {
 
 	@Transactional(readOnly = true)
 	public ProductResponse getAdminProductById(Long productId) {
-		return productMapper.toProductResponse(getRequiredProduct(productId));
+		Product product = productRepository.findWithCategoryById(productId)
+				.orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+		return productMapper.toProductResponse(product);
 	}
 
 	@Transactional(readOnly = true)

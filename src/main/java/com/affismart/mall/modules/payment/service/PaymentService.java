@@ -13,7 +13,6 @@ import com.affismart.mall.modules.payment.model.CheckoutSessionResult;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -36,7 +35,6 @@ public class PaymentService {
 		this.checkoutSessionGateway = checkoutSessionGateway;
 	}
 
-	@Transactional
 	public PaymentSessionResponse createCheckoutSession(Long userId, Long orderId) {
 		Order order = orderService.getOrderOwnedByUser(userId, orderId);
 		validateOrderForPaymentSession(order);

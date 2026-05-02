@@ -479,7 +479,7 @@ class ProductServiceTest {
 				14L, category, "Archived Product", "SKU-4", "archived-product",
 				new BigDecimal("400"), 0, false
 		);
-		given(productRepository.findById(14L)).willReturn(Optional.of(product));
+		given(productRepository.findWithCategoryById(14L)).willReturn(Optional.of(product));
 
 		// When
 		ProductResponse result = productService.getAdminProductById(14L);
@@ -494,7 +494,7 @@ class ProductServiceTest {
 	@DisplayName("getAdminProductById: Exception - missing product throws PRODUCT_NOT_FOUND")
 	void getAdminProductById_NotFound_ThrowsProductNotFound() {
 		// Given
-		given(productRepository.findById(404L)).willReturn(Optional.empty());
+		given(productRepository.findWithCategoryById(404L)).willReturn(Optional.empty());
 
 		// When + Then
 		assertThatThrownBy(() -> productService.getAdminProductById(404L))

@@ -1,6 +1,8 @@
 package com.affismart.mall.modules.user.repository;
 
 import com.affismart.mall.modules.user.entity.User;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,6 +20,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	Optional<User> findWithRolesById(Long id);
 
 	Page<User> findAll(Pageable pageable);
+
+	@EntityGraph(attributePaths = {"userRoles", "userRoles.role"})
+	List<User> findAllByIdIn(Collection<Long> ids);
 
 	boolean existsByEmail(String email);
 }

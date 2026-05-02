@@ -33,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.*;
@@ -53,6 +54,7 @@ class UserServiceTest {
     private UserService userService;
 
     @Captor private ArgumentCaptor<User> userCaptor;
+    @Captor private ArgumentCaptor<Pageable> pageableCaptor;
 
     // =========================================================
     // getCurrentUserProfile()
@@ -173,9 +175,11 @@ class UserServiceTest {
         // Given
         UserSummaryResponse summary = createMockSummaryResponse(1L);
         // PageImpl with a single element list defaults to size=1, page=0
-        Page<User> userPage = new PageImpl<>(List.of(createMockUser(1L, "a@b.com", UserStatus.ACTIVE)));
+        User user = createMockUser(1L, "a@b.com", UserStatus.ACTIVE);
+        Page<User> userPage = new PageImpl<>(List.of(user));
 
         given(userRepository.findAll(any(Pageable.class))).willReturn(userPage);
+        given(userRepository.findAllByIdIn(List.of(1L))).willReturn(List.of(user));
         given(userMapper.toUserSummaryResponse(any(User.class))).willReturn(summary);
 
         // When
@@ -186,6 +190,7 @@ class UserServiceTest {
         assertThat(result.page()).isZero();
         assertThat(result.size()).isEqualTo(1); // PageImpl default size for 1 element is 1
         verify(userRepository, times(1)).findAll(any(Pageable.class));
+        verify(userRepository, times(1)).findAllByIdIn(List.of(1L));
     }
 
     @Test
@@ -200,6 +205,24 @@ class UserServiceTest {
 
         // Then - verify it doesn't throw and still calls the repository
         verify(userRepository, times(1)).findAll(any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("getUsers: Edge Case - page and size are normalized to safe bounds")
+    void getUsers_InvalidPageAndHugeSize_NormalizesPagination() {
+        // Given
+        Page<User> emptyPage = new PageImpl<>(List.of());
+        given(userRepository.findAll(any(Pageable.class))).willReturn(emptyPage);
+
+        // When
+        userService.getUsers(-5, 1000, "createdAt", "desc");
+
+        // Then
+        verify(userRepository).findAll(pageableCaptor.capture());
+        Pageable pageable = pageableCaptor.getValue();
+        assertThat(pageable.getPageNumber()).isZero();
+        assertThat(pageable.getPageSize()).isEqualTo(100);
+        assertThat(pageable.getSort().getOrderFor("createdAt").getDirection()).isEqualTo(Sort.Direction.DESC);
     }
 
     // =========================================================

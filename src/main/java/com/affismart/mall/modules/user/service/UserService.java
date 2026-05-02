@@ -18,8 +18,13 @@ import com.affismart.mall.modules.user.repository.RoleRepository;
 import com.affismart.mall.modules.auth.service.RefreshTokenService;
 import com.affismart.mall.modules.user.repository.UserRepository;
 import com.affismart.mall.modules.user.repository.UserRoleRepository;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,6 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {
+
+	private static final int DEFAULT_PAGE_SIZE = 10;
+	private static final int MAX_PAGE_SIZE = 100;
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
@@ -81,11 +89,13 @@ public class UserService {
 	@Transactional(readOnly = true)
 	public PageResponse<UserSummaryResponse> getUsers(int page, int size, String sortBy, String sortDir) {
 		Pageable pageable = PageRequest.of(
-				page,
-				size,
+				Math.max(page, 0),
+				normalizePageSize(size),
 				Sort.by(resolveDirection(sortDir), normalizeSortProperty(sortBy))
 		);
-		Page<UserSummaryResponse> responsePage = userRepository.findAll(pageable)
+
+		Page<User> userPage = userRepository.findAll(pageable);
+		Page<UserSummaryResponse> responsePage = fetchRolesForPage(userPage)
 				.map(userMapper::toUserSummaryResponse);
 		return PageResponse.from(responsePage);
 	}
@@ -160,6 +170,34 @@ public class UserService {
 
 	private Sort.Direction resolveDirection(String sortDir) {
 		return "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+	}
+
+	private Page<User> fetchRolesForPage(Page<User> userPage) {
+		if (userPage.isEmpty()) {
+			return userPage;
+		}
+
+		List<Long> userIds = userPage.getContent()
+				.stream()
+				.map(User::getId)
+				.toList();
+		Map<Long, User> userById = new LinkedHashMap<>();
+		for (User user : userRepository.findAllByIdIn(userIds)) {
+			userById.put(user.getId(), user);
+		}
+
+		List<User> orderedUsers = new ArrayList<>(userIds.size());
+		for (Long userId : userIds) {
+			orderedUsers.add(userById.getOrDefault(userId, userPage.getContent().get(orderedUsers.size())));
+		}
+		return new PageImpl<>(orderedUsers, userPage.getPageable(), userPage.getTotalElements());
+	}
+
+	private int normalizePageSize(int size) {
+		if (size <= 0) {
+			return DEFAULT_PAGE_SIZE;
+		}
+		return Math.min(size, MAX_PAGE_SIZE);
 	}
 
 	private String normalizeSortProperty(String sortBy) {
