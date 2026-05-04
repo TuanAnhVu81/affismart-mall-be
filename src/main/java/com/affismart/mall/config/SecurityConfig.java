@@ -44,6 +44,8 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 						.requestMatchers("/error").permitAll()
+						// Allow lightweight health check for uptime monitoring (no DB call)
+						.requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/payment/webhook").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/v1/payment/success", "/api/v1/payment/cancel").permitAll()
