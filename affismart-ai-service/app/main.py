@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.chat import router as chat_router
@@ -29,3 +29,8 @@ app.include_router(chat_router)
 def health() -> HealthResponse:
     service = get_recommendation_service()
     return HealthResponse(**service.get_health())
+
+
+@app.head("/health", tags=["health"])
+def health_head() -> Response:
+    return Response(status_code=200)

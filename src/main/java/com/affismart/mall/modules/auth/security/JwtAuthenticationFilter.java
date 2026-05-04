@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				|| matches(method, requestUri, "POST", "/api/v1/payment/webhook")
 				|| matches(method, requestUri, "GET", "/api/v1/payment/success")
 				|| matches(method, requestUri, "GET", "/api/v1/payment/cancel")
-				|| matches(method, requestUri, "GET", "/api/v1/health")
+				|| isHealthCheckRequest(method, requestUri)
 				|| PATH_MATCHER.match("/swagger-ui/**", requestUri)
 				|| "/swagger-ui.html".equals(requestUri)
 				|| PATH_MATCHER.match("/v3/api-docs/**", requestUri)
@@ -130,6 +130,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private boolean matches(String method, String requestUri, String expectedMethod, String pattern) {
 		return expectedMethod.equalsIgnoreCase(method) && PATH_MATCHER.match(pattern, requestUri);
+	}
+
+	private boolean isHealthCheckRequest(String method, String requestUri) {
+		return ("GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method))
+				&& PATH_MATCHER.match("/api/v1/health/**", requestUri);
 	}
 
 	private boolean isPublicProductGetRequest(String method, String requestUri) {
