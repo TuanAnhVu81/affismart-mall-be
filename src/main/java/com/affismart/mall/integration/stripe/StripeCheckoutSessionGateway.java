@@ -31,6 +31,7 @@ import org.springframework.util.StringUtils;
 public class StripeCheckoutSessionGateway implements CheckoutSessionGateway {
 
 	private static final Logger log = LoggerFactory.getLogger(StripeCheckoutSessionGateway.class);
+	private static final String CHECKOUT_SESSION_IDEMPOTENCY_KEY_PREFIX = "checkout-session:order:";
 
 	private final StripeProperties stripeProperties;
 	private final PaymentRedirectService paymentRedirectService;
@@ -120,7 +121,10 @@ public class StripeCheckoutSessionGateway implements CheckoutSessionGateway {
 		try {
 			Session session = Session.create(
 					sessionBuilder.build(),
-					RequestOptions.builder().setApiKey(stripeProperties.getSecretKey()).build()
+					RequestOptions.builder()
+							.setApiKey(stripeProperties.getSecretKey())
+							.setIdempotencyKey(buildCheckoutSessionIdempotencyKey(order))
+							.build()
 			);
 
 			if (!StringUtils.hasText(session.getId()) || !StringUtils.hasText(session.getUrl())) {
@@ -198,6 +202,13 @@ public class StripeCheckoutSessionGateway implements CheckoutSessionGateway {
 			return "Product #" + orderItem.getProduct().getId();
 		}
 		return "Order Item";
+	}
+
+	private String buildCheckoutSessionIdempotencyKey(Order order) {
+		if (order.getId() == null) {
+			throw new AppException(ErrorCode.INVALID_INPUT, "Order id is required for payment session creation");
+		}
+		return CHECKOUT_SESSION_IDEMPOTENCY_KEY_PREFIX + order.getId();
 	}
 
 	private void validateRequiredProperty(String value, String propertyName) {
